@@ -1,7 +1,11 @@
 <?php
 
 use App\Http\Controllers\InventoryExportController;
+use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
+use App\Livewire\Auth\Profile;
+use App\Livewire\Auth\Register;
+use App\Livewire\Auth\ResetPassword;
 use App\Livewire\Erp\AccountsReceivable;
 use App\Livewire\Erp\DailyAudit;
 use App\Livewire\Erp\InventoryCatalog;
@@ -10,7 +14,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/login', Login::class)->middleware('guest')->name('login');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', Login::class)->name('login');
+    Route::get('/registro', Register::class)->name('register');
+    Route::get('/recuperar-contrasena', ForgotPassword::class)->name('password.request');
+    Route::get('/restablecer-contrasena/{token}', ResetPassword::class)->name('password.reset');
+});
 
 Route::post('/logout', function (Request $request) {
     Auth::logout();
@@ -22,6 +31,8 @@ Route::post('/logout', function (Request $request) {
 
 Route::middleware('auth')->group(function () {
     Route::redirect('/', '/pos');
+
+    Route::get('/perfil', Profile::class)->name('profile');
 
     // PC 1: Mostrador
     Route::get('/pos', PosDesk::class)->name('pos.desk');

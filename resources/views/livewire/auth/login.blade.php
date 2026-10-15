@@ -10,6 +10,10 @@
             <p class="text-sm text-slate-500">Gestión y mostrador de la veterinaria.</p>
         </div>
 
+        @if (session('status'))
+            <p class="rounded-[10px] bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-600/15">{{ session('status') }}</p>
+        @endif
+
         <div>
             <label for="email" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email</label>
             <input id="email" type="email" wire:model="email" autofocus autocomplete="username" class="w-full rounded-[10px] border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-900 focus:border-[#0F2A26] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10">
@@ -17,7 +21,10 @@
         </div>
 
         <div>
-            <label for="password" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Contraseña</label>
+            <div class="mb-1 flex items-center justify-between">
+                <label for="password" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Contraseña</label>
+                <a href="{{ route('password.request') }}" class="text-xs font-semibold text-[#0F2A26] hover:underline">¿La olvidaste?</a>
+            </div>
             <input id="password" type="password" wire:model="password" autocomplete="current-password" class="w-full rounded-[10px] border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-900 focus:border-[#0F2A26] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10">
             @error('password') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
         </div>
@@ -31,5 +38,11 @@
             <span wire:loading.remove wire:target="login">Ingresar</span>
             <span wire:loading wire:target="login">Ingresando…</span>
         </button>
+
+        @if (config('auth.registration'))
+            <p class="text-center text-sm text-slate-500">
+                ¿No tenés cuenta? <a href="{{ route('register') }}" class="font-semibold text-[#0F2A26] hover:underline">Crear cuenta</a>
+            </p>
+        @endif
     </form>
 </div>

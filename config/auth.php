@@ -114,4 +114,16 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public Registration
+    |--------------------------------------------------------------------------
+    |
+    | Whether anyone can create an account from /registro. Disabled by default
+    | so that a public deployment does not expose sales and account data.
+    |
+    */
+
+    'registration' => (bool) env('AUTH_REGISTRATION', false),
+
 ];

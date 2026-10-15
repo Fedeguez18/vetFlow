@@ -47,10 +47,10 @@
 
                 @if ($user)
                     <div class="flex items-center gap-2.5">
-                        <div class="hidden text-right leading-tight sm:block">
+                        <a href="{{ route('profile') }}" target="_blank" title="Mi perfil" class="hidden text-right leading-tight hover:opacity-80 sm:block">
                             <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $user->role }}</div>
                             <div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div>
-                        </div>
+                        </a>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" title="Cerrar sesión" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">

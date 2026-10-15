@@ -79,13 +79,15 @@
 
                 @if ($user)
                     <div class="flex items-center gap-2.5">
-                        <div class="hidden text-right leading-tight sm:block">
-                            <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $user->role }}</div>
-                            <div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div>
-                        </div>
-                        <span class="flex size-9 items-center justify-center rounded-full bg-[#0F2A26]/10 text-sm font-bold text-[#0F2A26] ring-2 ring-white">
-                            {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($user->name, 0, 1)) }}
-                        </span>
+                        <a href="{{ route('profile') }}" title="Mi perfil" class="flex items-center gap-2.5 rounded-lg hover:opacity-80">
+                            <div class="hidden text-right leading-tight sm:block">
+                                <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $user->role }}</div>
+                                <div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div>
+                            </div>
+                            <span class="flex size-9 items-center justify-center rounded-full bg-[#0F2A26]/10 text-sm font-bold text-[#0F2A26] ring-2 ring-white">
+                                {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($user->name, 0, 1)) }}
+                            </span>
+                        </a>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" title="Cerrar sesión" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
