@@ -15,6 +15,19 @@ class Category extends Model
     use HasFactory;
 
     /**
+     * Icon keys understood by the POS and inventory views, with their label.
+     */
+    public const ICONS = [
+        'vaccine' => 'Vacuna',
+        'pharmacy' => 'Farmacia',
+        'nutrition' => 'Nutrición',
+        'identification' => 'Identificación',
+        'instrument' => 'Instrumental',
+        'accessory' => 'Accesorio',
+        'other' => 'Otro',
+    ];
+
+    /**
      * Get the products in the category.
      *
      * @return HasMany<Product, $this>

@@ -7,6 +7,7 @@ use App\Livewire\Auth\Profile;
 use App\Livewire\Auth\Register;
 use App\Livewire\Auth\ResetPassword;
 use App\Livewire\Erp\AccountsReceivable;
+use App\Livewire\Erp\CategoriesSuppliers;
 use App\Livewire\Erp\DailyAudit;
 use App\Livewire\Erp\InventoryCatalog;
 use App\Livewire\Pos\PosDesk;
@@ -44,5 +45,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventario/exportar', InventoryExportController::class)->name('inventory.export');
         Route::get('/cuentas-corrientes', AccountsReceivable::class)->name('accounts');
         Route::get('/auditoria', DailyAudit::class)->name('audit');
+        Route::get('/rubros-proveedores', CategoriesSuppliers::class)->name('catalogs');
     });
 });

@@ -19,6 +19,7 @@
             ['label' => 'Inventario & Lotes', 'route' => 'erp.inventory'],
             ['label' => 'Cuentas Corrientes & Remitos', 'route' => 'erp.accounts'],
             ['label' => 'Auditoría & Caja', 'route' => 'erp.audit'],
+            ['label' => 'Rubros & Proveedores', 'route' => 'erp.catalogs'],
         ];
         $user = auth()->user();
     @endphp
