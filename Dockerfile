@@ -45,11 +45,13 @@ RUN composer dump-autoload --optimize --no-dev \
     && chown -R www-data:www-data storage bootstrap/cache
 
 # Al arrancar: cachea config/rutas/vistas, corre migraciones, crea/actualiza el
-# administrador (ADMIN_EMAIL / ADMIN_PASSWORD) y levanta Apache.
+# administrador (ADMIN_EMAIL / ADMIN_PASSWORD), carga los datos de demo si
+# SEED_DEMO=true y la base está vacía (si falla no frena el arranque) y levanta Apache.
 # Las migraciones usan la conexión directa (sin pooler) de Neon.
 # Si no se definió APP_URL, usa la URL pública que provee Render.
 CMD APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}" php artisan optimize \
     && php artisan migrate --force --database=pgsql_direct \
     && php artisan app:ensure-admin --email="$ADMIN_EMAIL" --password="$ADMIN_PASSWORD" --name="${ADMIN_NAME:-Administrador}" \
+    && { [ "$SEED_DEMO" != "true" ] || php artisan app:seed-demo || echo "app:seed-demo falló; la app arranca igual."; } \
     && chown -R www-data:www-data storage bootstrap/cache \
     && exec apache2-foreground

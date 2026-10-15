@@ -33,6 +33,9 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      # Carga el catálogo, productores y ventas de demo si la base no tiene productos
+      - key: SEED_DEMO
+        value: "true"
       # Registro público en /registro: dejarlo en false en producción
       - key: AUTH_REGISTRATION
         value: "false"
