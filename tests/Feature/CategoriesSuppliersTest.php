@@ -38,7 +38,7 @@ class CategoriesSuppliersTest extends TestCase
     {
         Livewire::test(CategoriesSuppliers::class)
             ->set('categoryName', '  Antiparasitarios ')
-            ->set('categoryIcon', 'pharmacy')
+            ->set('categoryColor', 'pharmacy')
             ->call('saveCategory')
             ->assertHasNoErrors()
             ->assertDispatched('toast')
@@ -76,7 +76,7 @@ class CategoriesSuppliersTest extends TestCase
             ->call('editCategory', $category->id)
             ->assertSet('categoryName', 'Farmacia')
             ->set('categoryName', 'Farmacia Veterinaria')
-            ->set('categoryIcon', 'vaccine')
+            ->set('categoryColor', 'vaccine')
             ->call('saveCategory')
             ->assertHasNoErrors();
 

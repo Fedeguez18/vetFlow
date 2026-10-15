@@ -38,7 +38,7 @@ class PosDesk extends Component
     /**
      * Cart lines keyed by product id.
      *
-     * @var array<int, array{product_id: int, name: string, barcode: ?string, icon: ?string, price: string, stock: int, quantity: int}>
+     * @var array<int, array{product_id: int, name: string, barcode: ?string, price: string, stock: int, quantity: int}>
      */
     public array $cart = [];
 
@@ -213,7 +213,7 @@ class PosDesk extends Component
         $this->reset('cart', 'producerId', 'paymentMethod', 'received', 'search');
         unset($this->lastSale, $this->producers, $this->catalog, $this->nextVoucher);
 
-        $this->notify("Venta {$sale->voucher_number} registrada.".($change ? ' Cambio: '.self::money($change).'.' : ''), 'success');
+        $this->notify("Venta {$sale->voucher_number} registrada.".($change ? ' Cambio: '.Pricing::money($change).'.' : ''), 'success');
         $this->dispatch('print-ticket');
     }
 
@@ -228,13 +228,13 @@ class PosDesk extends Component
         return Category::query()
             ->whereHas('products', fn ($query) => $query->where('is_active', true))
             ->orderBy('id')
-            ->get(['id', 'name', 'icon']);
+            ->get(['id', 'name']);
     }
 
     #[Computed]
     public function catalog(): Collection
     {
-        return $this->catalogQuery()->with(['category', 'nextLot'])->orderBy('name')->limit(self::CATALOG_LIMIT)->get();
+        return $this->catalogQuery()->with(['category', 'nextLot'])->withSellableStock()->orderBy('name')->limit(self::CATALOG_LIMIT)->get();
     }
 
     #[Computed]
@@ -310,20 +310,17 @@ class PosDesk extends Component
         ]);
     }
 
-    /**
-     * Argentine currency format: "$18.200" for whole amounts, "$18,90" otherwise.
-     */
-    public static function money(mixed $amount): string
-    {
-        return Pricing::money($amount);
-    }
-
     protected function addToCart(Product $product): bool
     {
         $current = $this->cart[$product->id]['quantity'] ?? 0;
+        $available = $product->sellableStock();
 
-        if ($current + 1 > $product->stock) {
-            $this->notify("Sin stock suficiente de {$product->name} (disponible {$product->stock}).");
+        if ($current + 1 > $available) {
+            $expired = $product->expiredStock();
+
+            $this->notify($available === 0 && $expired > 0
+                ? "No se puede vender {$product->name}: las {$expired} unidades en stock están vencidas."
+                : "Sin stock suficiente de {$product->name} (disponible {$available}).");
 
             return false;
         }
@@ -332,9 +329,8 @@ class PosDesk extends Component
             'product_id' => $product->id,
             'name' => $product->name,
             'barcode' => $product->barcode,
-            'icon' => $product->category?->icon,
             'price' => (string) $product->price,
-            'stock' => $product->stock,
+            'stock' => $available,
             'quantity' => $current + 1,
         ];
 

@@ -144,16 +144,16 @@ class ProductForm extends Form
 
         return [
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($this->product?->id)],
-            'sku' => ['nullable', 'string', 'max:40', Rule::unique('products', 'sku')->ignore($this->product?->id)],
+            'sku' => ['required', 'string', 'max:40', Rule::unique('products', 'sku')->ignore($this->product?->id)],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
             'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
             'cost_price' => ['required', 'numeric', 'min:0'],
             // A negative markup is allowed: the final price below cost only triggers a warning.
             'markup_percent' => ['required', 'numeric', 'min:-100'],
             'vat_percent' => ['required', 'numeric', 'min:0'],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'gt:0'],
             'tracks_expiry' => ['boolean'],
             'min_stock' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
@@ -172,7 +172,11 @@ class ProductForm extends Form
     {
         return [
             'barcode.unique' => 'Ya existe un artículo con ese código de barras.',
-            'sku.unique' => 'Ya existe un artículo con ese SKU.',
+            'sku.unique' => 'Ya existe un artículo con ese código.',
+            'sku.required' => 'El código es obligatorio.',
+            'category_id.required' => 'Elegí el rubro.',
+            'price.required' => 'El precio es obligatorio.',
+            'price.gt' => 'El precio tiene que ser mayor a cero.',
             'name.required' => 'El nombre es obligatorio.',
             '*.required' => 'Obligatorio.',
             '*.numeric' => 'Tiene que ser un número.',

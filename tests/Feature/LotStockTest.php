@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\ProductEditor;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -33,7 +34,9 @@ class LotStockTest extends TestCase
     {
         Livewire::test(ProductEditor::class)
             ->call('create')
+            ->set('form.sku', 'VAC-ANT')
             ->set('form.name', 'Vacuna Anticarbunclosa')
+            ->set('form.category_id', Category::factory()->create()->id)
             ->set('form.cost_price', '19500')
             ->set('form.markup_percent', '40')
             ->set('form.vat_percent', '10.5')

@@ -1,21 +1,6 @@
 @use('App\Models\Category')
 
 <div class="space-y-6">
-    @php
-        $input = 'w-full rounded-[10px] border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 focus:border-[#0F2A26] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10';
-        $label = 'mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500';
-
-        // Same palette as the inventory catalog badges.
-        $categoryColors = [
-            'vaccine' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-            'pharmacy' => 'bg-sky-50 text-sky-700 ring-sky-600/20',
-            'nutrition' => 'bg-orange-50 text-orange-700 ring-orange-600/20',
-            'identification' => 'bg-violet-50 text-violet-700 ring-violet-600/20',
-            'instrument' => 'bg-cyan-50 text-cyan-700 ring-cyan-600/20',
-            'accessory' => 'bg-pink-50 text-pink-700 ring-pink-600/20',
-        ];
-    @endphp
-
     <div>
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">Rubros & Proveedores</h1>
         <p class="text-sm text-slate-500">Los rubros y proveedores que cargues acá aparecen al crear o editar artículos y al reponer stock.</p>
@@ -29,28 +14,29 @@
                 <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{{ $this->categories->count() }}</span>
             </div>
 
-            <form wire:submit="saveCategory" class="grid gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:grid-cols-[1fr_11rem_auto] sm:items-end">
+            <form wire:submit="saveCategory" class="grid gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-start">
                 <div>
-                    <label for="categoryName" class="{{ $label }}">{{ $categoryId ? 'Editar rubro' : 'Nuevo rubro' }}</label>
-                    <input id="categoryName" type="text" wire:model="categoryName" placeholder="Ej.: Antiparasitarios" maxlength="100" class="{{ $input }}">
-                    @error('categoryName') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    <x-form.label for="categoryName">{{ $categoryId ? 'Editar rubro' : 'Nuevo rubro' }}</x-form.label>
+                    <x-form.input id="categoryName" type="text" wire:model="categoryName" placeholder="Ej.: Antiparasitarios" maxlength="100" class="text-sm" />
+                    <x-form.error name="categoryName" />
                 </div>
 
                 <div>
-                    <label for="categoryIcon" class="{{ $label }}">Ícono</label>
-                    <select id="categoryIcon" wire:model="categoryIcon" class="{{ $input }}">
-                        @foreach (Category::ICONS as $key => $iconLabel)
-                            <option value="{{ $key }}">{{ $iconLabel }}</option>
+                    <x-form.label for="categoryColor">Color</x-form.label>
+                    <x-form.select id="categoryColor" wire:model="categoryColor" class="text-sm">
+                        @foreach (Category::COLORS as $key => $colorLabel)
+                            <option value="{{ $key }}">{{ $colorLabel }}</option>
                         @endforeach
-                    </select>
+                    </x-form.select>
                 </div>
 
-                <div class="flex gap-2">
-                    <button type="submit" wire:loading.attr="disabled" wire:target="saveCategory" class="rounded-[10px] bg-[#0F2A26] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1A3D37] disabled:opacity-50">
+                {{-- Top padding = label height, so the buttons line up with the inputs even when an error grows the first column. --}}
+                <div class="flex gap-2 sm:pt-5">
+                    <button type="submit" wire:loading.attr="disabled" wire:target="saveCategory" class="whitespace-nowrap rounded-[10px] bg-[#0F2A26] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1A3D37] disabled:opacity-50">
                         {{ $categoryId ? 'Guardar' : 'Agregar' }}
                     </button>
                     @if ($categoryId)
-                        <button type="button" wire:click="cancelCategory" class="rounded-[10px] px-3 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-300 hover:bg-white">Cancelar</button>
+                        <button type="button" wire:click="cancelCategory" class="whitespace-nowrap rounded-[10px] px-3 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-300 hover:bg-white">Cancelar</button>
                     @endif
                 </div>
             </form>
@@ -59,7 +45,7 @@
                 @forelse ($this->categories as $category)
                     <li wire:key="category-{{ $category->id }}" @class(['flex items-center justify-between gap-3 px-5 py-3', 'bg-emerald-50/50' => $categoryId === $category->id])>
                         <div class="flex min-w-0 items-center gap-3">
-                            <span class="shrink-0 rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset {{ $categoryColors[$category->icon] ?? 'bg-slate-100 text-slate-600 ring-slate-500/20' }}">{{ $category->name }}</span>
+                            <x-category-badge :category="$category" class="shrink-0" />
                             <span class="text-sm text-slate-500">{{ $category->products_count }} {{ $category->products_count === 1 ? 'artículo' : 'artículos' }}</span>
                         </div>
                         <div class="flex shrink-0 gap-1">
@@ -82,27 +68,27 @@
 
             <form wire:submit="saveSupplier" class="grid gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                    <label for="businessName" class="{{ $label }}">{{ $supplierId ? 'Editar proveedor · Razón social' : 'Nuevo proveedor · Razón social' }}</label>
-                    <input id="businessName" type="text" wire:model="businessName" placeholder="Ej.: BioPampa Laboratorios S.A." class="{{ $input }}">
-                    @error('businessName') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    <x-form.label for="businessName">{{ $supplierId ? 'Editar proveedor · Razón social' : 'Nuevo proveedor · Razón social' }}</x-form.label>
+                    <x-form.input id="businessName" type="text" wire:model="businessName" placeholder="Ej.: BioPampa Laboratorios S.A." class="text-sm" />
+                    <x-form.error name="businessName" />
                 </div>
 
                 <div>
-                    <label for="cuit" class="{{ $label }}">CUIT</label>
-                    <input id="cuit" type="text" wire:model="cuit" inputmode="numeric" placeholder="30-71234567-1" class="{{ $input }} font-mono">
-                    @error('cuit') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    <x-form.label for="cuit">CUIT</x-form.label>
+                    <x-form.input id="cuit" type="text" wire:model="cuit" inputmode="numeric" placeholder="30-71234567-1" class="text-sm font-mono" />
+                    <x-form.error name="cuit" />
                 </div>
 
                 <div>
-                    <label for="phone" class="{{ $label }}">Teléfono</label>
-                    <input id="phone" type="tel" wire:model="phone" placeholder="(0358) 464-2210" class="{{ $input }}">
-                    @error('phone') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    <x-form.label for="phone">Teléfono</x-form.label>
+                    <x-form.input id="phone" type="tel" wire:model="phone" placeholder="(0358) 464-2210" class="text-sm" />
+                    <x-form.error name="phone" />
                 </div>
 
                 <div class="sm:col-span-2">
-                    <label for="supplierEmail" class="{{ $label }}">Email</label>
-                    <input id="supplierEmail" type="email" wire:model="email" placeholder="ventas@proveedor.com" class="{{ $input }}">
-                    @error('email') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    <x-form.label for="supplierEmail">Email</x-form.label>
+                    <x-form.input id="supplierEmail" type="email" wire:model="email" placeholder="ventas@proveedor.com" class="text-sm" />
+                    <x-form.error name="email" />
                 </div>
 
                 <div class="flex gap-2 sm:col-span-2">

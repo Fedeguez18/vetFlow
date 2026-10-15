@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\LotFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,16 @@ class Lot extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Lots with units that can still be sold: a lot expiring today is sellable, from tomorrow it is expired.
+     *
+     * @param  Builder<Lot>  $query
+     */
+    public function scopeSellable(Builder $query): void
+    {
+        $query->where('quantity', '>', 0)->whereDate('expiration_date', '>=', today());
     }
 
     /**

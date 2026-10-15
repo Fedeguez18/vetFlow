@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -25,6 +26,33 @@ class Producer extends Model
             'discount_percent' => 'decimal:2',
             'balance' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Filter by name, business name or CUIT.
+     *
+     * @param  Builder<Producer>  $query
+     */
+    public function scopeSearch(Builder $query, string $term): void
+    {
+        $term = trim($term);
+
+        $query->when($term !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+            ->where('name', 'like', "%{$term}%")
+            ->orWhere('business_name', 'like', "%{$term}%")
+            ->orWhere('cuit', 'like', "%{$term}%")));
+    }
+
+    /**
+     * Add "unpaid_count": how many remitos still carry debt.
+     *
+     * @param  Builder<Producer>  $query
+     */
+    public function scopeWithUnpaidCount(Builder $query): void
+    {
+        $query->withCount(['sales as unpaid_count' => fn (Builder $sales) => $sales
+            ->where('type', 'remito')
+            ->whereIn('status', Sale::UNPAID_STATUSES)]);
     }
 
     /**

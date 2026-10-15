@@ -1,5 +1,7 @@
+@use('App\Support\Pricing')
+
 @php
-    $money = fn ($amount) => '$ '.number_format((float) $amount, 2, ',', '.');
+    $money = fn ($amount) => Pricing::moneyWithCents($amount);
     $summary = $this->summary;
     $isToday = $this->day->isToday();
 
@@ -32,7 +34,8 @@
                 .c{text-align:center}.row{display:flex;justify-content:space-between;gap:8px}.muted{color:#444;font-size:11px}
                 hr{border:0;border-top:1px dashed #000;margin:6px 0}.total{font-size:15px;font-weight:bold}
                 .blank{margin-top:10px}.sign{margin-top:28px;border-top:1px solid #000;text-align:center;font-size:11px;padding-top:2px}
-            </style></head><body>${this.$refs.report.innerHTML}</body></html>`);
+            </style><\/head><body>${this.$refs.report.innerHTML}<\/body><\/html>`);
+            {{-- Escaped closing tags on purpose: dev tools like Laravel Boost inject their script before every literal head-closing tag, which would break this attribute. --}}
             doc.close();
             frame.contentWindow.focus();
             frame.contentWindow.print();

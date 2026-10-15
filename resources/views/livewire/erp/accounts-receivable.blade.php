@@ -1,5 +1,7 @@
+@use('App\Support\Pricing')
+
 @php
-    $money = fn ($amount) => '$ '.number_format((float) $amount, 2, ',', '.');
+    $money = fn ($amount) => Pricing::moneyWithCents($amount);
     $producer = $this->selectedProducer;
 @endphp
 

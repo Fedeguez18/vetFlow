@@ -6,15 +6,6 @@
     $kpis = $this->kpis;
     $products = $this->products;
 
-    $categoryColors = [
-        'vaccine' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-        'pharmacy' => 'bg-sky-50 text-sky-700 ring-sky-600/20',
-        'nutrition' => 'bg-orange-50 text-orange-700 ring-orange-600/20',
-        'identification' => 'bg-violet-50 text-violet-700 ring-violet-600/20',
-        'instrument' => 'bg-cyan-50 text-cyan-700 ring-cyan-600/20',
-        'accessory' => 'bg-pink-50 text-pink-700 ring-pink-600/20',
-    ];
-
     $stockBadges = [
         'ok' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
         'low' => 'bg-amber-50 text-amber-700 ring-amber-600/25',
@@ -40,9 +31,6 @@
         x-on:click="Livewire.dispatch('product-create')"
         class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-600"
     >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-4">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
         Nuevo artículo
     </button>
 @endpush
@@ -59,9 +47,6 @@
                 </div>
                 <span class="mt-1 block text-xs text-slate-400">En catálogo activo</span>
             </div>
-            <span class="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
-            </span>
         </div>
 
         <div class="flex items-start justify-between rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
@@ -73,9 +58,6 @@
                 </div>
                 <span class="mt-1.5 inline-block rounded-md bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950">Reposición urgente</span>
             </div>
-            <span class="flex size-11 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
-            </span>
         </div>
 
         <div class="flex items-start justify-between rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
@@ -87,9 +69,6 @@
                 </div>
                 <span class="mt-1.5 inline-block rounded-md bg-rose-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Crítico &lt; 30 días: {{ $kpis['critical_lots'] }}</span>
             </div>
-            <span class="flex size-11 items-center justify-center rounded-xl bg-white text-rose-500 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-            </span>
         </div>
 
         <div class="flex items-start justify-between rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
@@ -101,9 +80,6 @@
                 </div>
                 <span class="mt-1.5 block text-[11px] font-bold uppercase tracking-wide text-emerald-700">Efectivo + QR + Tarjetas</span>
             </div>
-            <span class="flex size-11 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
-            </span>
         </div>
     </div>
 
@@ -111,17 +87,12 @@
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-wrap items-center gap-3 p-4">
             <div class="relative w-full sm:w-72">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400">
-                    <path stroke-linecap="round" d="M3 5v14M21 5v14" stroke-width="1.5" />
-                    <path stroke-linecap="round" d="M6.5 5v14M10 5v14M14.5 5v14M17.5 5v14" stroke-width="1" />
-                    <path stroke-linecap="round" d="M8.25 5v14M12.25 5v14" stroke-width="2" />
-                </svg>
                 <input
                     type="search"
                     wire:model.live.debounce.300ms="search"
                     autocomplete="off"
                     placeholder="Buscar por código de barras, SKU o nombre…"
-                    class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#0F2A26] focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10"
+                    class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#0F2A26] focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10"
                 >
             </div>
 
@@ -144,8 +115,8 @@
 
             <div class="flex items-center gap-2">
                 <div x-data="{ open: false }" x-on:click.outside="open = false" class="relative">
-                    <button type="button" x-on:click="open = ! open" title="Ordenar: {{ Product::SORTS[$sort] ?? '' }}" class="flex size-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0-3.75-3.75M17.25 21 21 17.25" /></svg>
+                    <button type="button" x-on:click="open = ! open" title="Ordenar: {{ Product::SORTS[$sort] ?? '' }}" class="flex h-10 items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                        Ordenar
                     </button>
                     <div x-show="open" x-transition style="display: none" class="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                         @foreach (Product::SORTS as $key => $sortLabel)
@@ -158,9 +129,9 @@
                 <a
                     href="{{ route('erp.inventory.export', array_filter(['q' => $search, 'category' => $categoryId, 'sort' => $sort])) }}"
                     title="Exportar CSV (Excel)"
-                    class="flex size-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    class="flex h-10 items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                    Exportar CSV
                 </a>
             </div>
         </div>
@@ -201,7 +172,7 @@
                             </td>
                             <td class="whitespace-nowrap px-5 py-4">
                                 @if ($product->category)
-                                    <span class="rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset {{ $categoryColors[$product->category->icon] ?? 'bg-slate-100 text-slate-600 ring-slate-500/20' }}">{{ $product->category->name }}</span>
+                                    <x-category-badge :category="$product->category" />
                                 @else
                                     <span class="text-slate-400">—</span>
                                 @endif
@@ -250,10 +221,9 @@
                                     <button
                                         type="button"
                                         wire:click="$dispatch('product-edit', { productId: {{ $product->id }} })"
-                                        title="Editar"
-                                        class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                        class="rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                                        Editar
                                     </button>
                                 </div>
                             </td>

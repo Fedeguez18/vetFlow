@@ -10,6 +10,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Payment extends Model
 {
     /**
+     * Ways a producer can pay their account.
+     */
+    public const METHODS = [
+        'efectivo' => 'Efectivo',
+        'transferencia' => 'Transferencia',
+        'cheque' => 'Cheque',
+        'tarjeta' => 'Tarjeta',
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

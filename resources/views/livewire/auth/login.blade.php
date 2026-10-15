@@ -15,18 +15,18 @@
         @endif
 
         <div>
-            <label for="email" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email</label>
-            <input id="email" type="email" wire:model="email" autofocus autocomplete="username" class="w-full rounded-[10px] border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-900 focus:border-[#0F2A26] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10">
-            @error('email') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+            <x-form.label for="email">Email</x-form.label>
+            <x-form.input id="email" type="email" wire:model="email" autofocus autocomplete="username" />
+            <x-form.error name="email" />
         </div>
 
         <div>
             <div class="mb-1 flex items-center justify-between">
-                <label for="password" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Contraseña</label>
+                <x-form.label for="password" :spaced="false">Contraseña</x-form.label>
                 <a href="{{ route('password.request') }}" class="text-xs font-semibold text-[#0F2A26] hover:underline">¿La olvidaste?</a>
             </div>
-            <input id="password" type="password" wire:model="password" autocomplete="current-password" class="w-full rounded-[10px] border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-900 focus:border-[#0F2A26] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10">
-            @error('password') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+            <x-form.input id="password" type="password" wire:model="password" autocomplete="current-password" />
+            <x-form.error name="password" />
         </div>
 
         <label class="flex items-center gap-2 text-sm text-slate-600">

@@ -161,7 +161,7 @@ class StockService
             $remaining = $quantity;
 
             $lots = $product->lots()
-                ->where('quantity', '>', 0)
+                ->sellable()
                 ->orderBy('expiration_date')
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -181,7 +181,7 @@ class StockService
             }
 
             if ($remaining > 0) {
-                throw new StockException("Los lotes de {$product->name} no alcanzan para {$quantity} unidades.");
+                throw new StockException("Los lotes vigentes de {$product->name} no alcanzan para {$quantity} unidades (los lotes vencidos no se venden).");
             }
         } else {
             $this->recordSale($product, $sale, -$quantity, null, $userId);

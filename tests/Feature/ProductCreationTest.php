@@ -79,25 +79,37 @@ class ProductCreationTest extends TestCase
         $this->assertSame(1, Product::count());
     }
 
-    public function test_barcode_and_sku_are_optional(): void
+    public function test_the_barcode_is_optional(): void
+    {
+        $category = Category::factory()->create();
+
+        Livewire::test(ProductEditor::class)
+            ->call('create')
+            ->set('form.sku', 'LAP-MAR')
+            ->set('form.name', 'Lápiz marcador')
+            ->set('form.category_id', $category->id)
+            ->set('form.cost_price', '100')
+            ->set('form.markup_percent', '10')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertSame('LAP-MAR', Product::whereNull('barcode')->sole()->sku);
+    }
+
+    public function test_code_category_and_a_positive_price_are_required(): void
     {
         Livewire::test(ProductEditor::class)
             ->call('create')
-            ->set('form.name', 'Lápiz marcador')
-            ->set('form.cost_price', '100')
-            ->set('form.markup_percent', '10')
+            ->set('form.name', 'Sin datos')
+            ->set('form.cost_price', '0')
+            ->set('form.price', '0')
             ->call('save')
-            ->assertHasNoErrors();
+            ->assertHasErrors(['form.sku' => 'required', 'form.category_id' => 'required', 'form.price' => 'gt'])
+            ->assertSee('El código es obligatorio.')
+            ->assertSee('Elegí el rubro.')
+            ->assertSee('El precio tiene que ser mayor a cero.');
 
-        Livewire::test(ProductEditor::class)
-            ->call('create')
-            ->set('form.name', 'Otro sin código')
-            ->set('form.cost_price', '100')
-            ->set('form.markup_percent', '10')
-            ->call('save')
-            ->assertHasNoErrors();
-
-        $this->assertSame(2, Product::whereNull('barcode')->whereNull('sku')->count());
+        $this->assertSame(0, Product::count());
     }
 
     public function test_amounts_and_percentages_cannot_be_negative(): void
@@ -132,7 +144,9 @@ class ProductCreationTest extends TestCase
     {
         $component = Livewire::test(ProductEditor::class)
             ->call('create')
+            ->set('form.sku', 'LIQ-1')
             ->set('form.name', 'Liquidación')
+            ->set('form.category_id', Category::factory()->create()->id)
             ->set('form.cost_price', '1000')
             ->set('form.vat_percent', '21')
             ->set('form.price', '900');
@@ -145,7 +159,7 @@ class ProductCreationTest extends TestCase
 
     public function test_editing_never_changes_stock_and_keeps_the_price_history(): void
     {
-        $product = Product::factory()->create(['stock' => 20, 'cost_price' => 1000, 'markup_percent' => 50, 'vat_percent' => 21, 'price' => 1815]);
+        $product = Product::factory()->create(['category_id' => Category::factory(), 'stock' => 20, 'cost_price' => 1000, 'markup_percent' => 50, 'vat_percent' => 21, 'price' => 1815]);
         $product->priceHistories()->create(['cost_price' => 1000, 'markup_percent' => 50, 'vat_percent' => 21, 'price' => 1815]);
 
         Livewire::test(ProductEditor::class)

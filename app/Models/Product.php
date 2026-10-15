@@ -172,6 +172,41 @@ class Product extends Model
     }
 
     /**
+     * Units that can be sold: every unit for products without expiry, only the non-expired lots otherwise.
+     * Uses the aggregate loaded by withSellableStock() when present.
+     */
+    public function sellableStock(): int
+    {
+        if (! $this->tracks_expiry) {
+            return (int) $this->stock;
+        }
+
+        if (array_key_exists('sellable_lots_quantity', $this->attributes)) {
+            return (int) $this->attributes['sellable_lots_quantity'];
+        }
+
+        return (int) $this->lots()->sellable()->sum('quantity');
+    }
+
+    /**
+     * Units in stock that cannot be sold because their lot already expired.
+     */
+    public function expiredStock(): int
+    {
+        return max(0, (int) $this->stock - $this->sellableStock());
+    }
+
+    /**
+     * Eager load the sellable lot quantity used by sellableStock().
+     *
+     * @param  Builder<Product>  $query
+     */
+    public function scopeWithSellableStock(Builder $query): void
+    {
+        $query->withSum(['lots as sellable_lots_quantity' => fn (Builder $lots) => $lots->sellable()], 'quantity');
+    }
+
+    /**
      * Recompute the stock as the sum of the lots for products that track expiry.
      */
     public function syncStockFromLots(): void

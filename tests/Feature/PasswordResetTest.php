@@ -5,7 +5,8 @@ namespace Tests\Feature;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\ResetPassword;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword as ResetPasswordNotification;
+use App\Notifications\ResetPasswordNotification;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -39,7 +40,11 @@ class PasswordResetTest extends TestCase
         Notification::assertSentTo($user, ResetPasswordNotification::class, function ($notification) use (&$token, $user) {
             $token = $notification->token;
 
-            return str_contains($notification->toMail($user)->actionUrl, '/restablecer-contrasena/'.$token);
+            $mail = $notification->toMail($user);
+
+            return $notification instanceof ShouldQueue
+                && $mail->subject === 'Restablecer contraseña · veteFlow'
+                && str_contains($mail->actionUrl, '/restablecer-contrasena/'.$token);
         });
 
         $this->withoutVite()->get(route('password.reset', ['token' => $token, 'email' => 'vet@example.com']))->assertOk();

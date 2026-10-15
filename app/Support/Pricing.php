@@ -86,6 +86,14 @@ class Pricing
     }
 
     /**
+     * Accounting format, always with cents: "$ 18.200,00". Used by accounts receivable and the cash audit.
+     */
+    public static function moneyWithCents(mixed $amount): string
+    {
+        return '$ '.number_format((float) $amount, 2, ',', '.');
+    }
+
+    /**
      * Percent with comma decimals only when needed: "21", "10,5".
      */
     public static function percent(mixed $value): string

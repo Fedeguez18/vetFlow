@@ -15,16 +15,16 @@ class Category extends Model
     use HasFactory;
 
     /**
-     * Icon keys understood by the POS and inventory views, with their label.
+     * Badge colors for the inventory view. The key is what gets stored in categories.icon.
      */
-    public const ICONS = [
-        'vaccine' => 'Vacuna',
-        'pharmacy' => 'Farmacia',
-        'nutrition' => 'Nutrición',
-        'identification' => 'Identificación',
-        'instrument' => 'Instrumental',
-        'accessory' => 'Accesorio',
-        'other' => 'Otro',
+    public const COLORS = [
+        'vaccine' => 'Verde',
+        'pharmacy' => 'Celeste',
+        'nutrition' => 'Naranja',
+        'identification' => 'Violeta',
+        'instrument' => 'Turquesa',
+        'accessory' => 'Rosa',
+        'other' => 'Gris',
     ];
 
     /**

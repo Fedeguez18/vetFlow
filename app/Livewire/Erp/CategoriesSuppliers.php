@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Erp;
 
+use App\Exceptions\CatalogException;
 use App\Models\Category;
-use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Services\CategoryService;
+use App\Services\SupplierService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -23,7 +25,7 @@ class CategoriesSuppliers extends Component
 
     public string $categoryName = '';
 
-    public string $categoryIcon = 'other';
+    public string $categoryColor = 'other';
 
     #[Locked]
     public ?int $supplierId = null;
@@ -36,13 +38,13 @@ class CategoriesSuppliers extends Component
 
     public string $email = '';
 
-    public function saveCategory(): void
+    public function saveCategory(CategoryService $categories): void
     {
         $this->categoryName = trim($this->categoryName);
 
         $this->validate([
             'categoryName' => ['required', 'string', 'max:100', Rule::unique('categories', 'name')->ignore($this->categoryId)],
-            'categoryIcon' => ['required', Rule::in(array_keys(Category::ICONS))],
+            'categoryColor' => ['required', Rule::in(array_keys(Category::COLORS))],
         ], [
             'categoryName.required' => 'Ingresá el nombre del rubro.',
             'categoryName.max' => 'El nombre no puede superar los :max caracteres.',
@@ -50,10 +52,10 @@ class CategoriesSuppliers extends Component
         ]);
 
         if ($this->categoryId) {
-            Category::findOrFail($this->categoryId)->update(['name' => $this->categoryName, 'icon' => $this->categoryIcon]);
+            $categories->update(Category::findOrFail($this->categoryId), $this->categoryName, $this->categoryColor);
             $message = 'Rubro actualizado.';
         } else {
-            Category::create(['name' => $this->categoryName, 'slug' => $this->uniqueSlug($this->categoryName), 'icon' => $this->categoryIcon]);
+            $categories->create($this->categoryName, $this->categoryColor);
             $message = 'Rubro creado.';
         }
 
@@ -69,26 +71,24 @@ class CategoriesSuppliers extends Component
         $this->resetValidation();
         $this->categoryId = $category->id;
         $this->categoryName = $category->name;
-        $this->categoryIcon = array_key_exists($category->icon, Category::ICONS) ? $category->icon : 'other';
+        $this->categoryColor = array_key_exists($category->icon, Category::COLORS) ? $category->icon : 'other';
     }
 
     public function cancelCategory(): void
     {
-        $this->reset('categoryId', 'categoryName', 'categoryIcon');
-        $this->resetValidation(['categoryName', 'categoryIcon']);
+        $this->reset('categoryId', 'categoryName', 'categoryColor');
+        $this->resetValidation(['categoryName', 'categoryColor']);
     }
 
-    public function deleteCategory(int $id): void
+    public function deleteCategory(int $id, CategoryService $categories): void
     {
-        $category = Category::withCount('products')->findOrFail($id);
-
-        if ($category->products_count > 0) {
-            $this->dispatch('toast', message: "No se puede eliminar «{$category->name}»: tiene {$category->products_count} productos. Cambiales el rubro primero.", type: 'error');
+        try {
+            $categories->delete(Category::findOrFail($id));
+        } catch (CatalogException $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
 
             return;
         }
-
-        $category->delete();
 
         if ($this->categoryId === $id) {
             $this->cancelCategory();
@@ -98,12 +98,12 @@ class CategoriesSuppliers extends Component
         $this->dispatch('toast', message: 'Rubro eliminado.');
     }
 
-    public function saveSupplier(): void
+    public function saveSupplier(SupplierService $suppliers): void
     {
         $this->businessName = trim($this->businessName);
         $this->phone = trim($this->phone);
         $this->email = Str::lower(trim($this->email));
-        $this->cuit = $this->normalizeCuit($this->cuit);
+        $this->cuit = $suppliers->normalizeCuit($this->cuit);
 
         $this->validate([
             'businessName' => ['required', 'string', 'max:255'],
@@ -118,20 +118,14 @@ class CategoriesSuppliers extends Component
             'email.email' => 'El email no es válido.',
         ]);
 
-        $data = [
+        $suppliers->save([
             'business_name' => $this->businessName,
             'cuit' => $this->cuit ?: null,
             'phone' => $this->phone ?: null,
             'email' => $this->email ?: null,
-        ];
+        ], $this->supplierId ? Supplier::findOrFail($this->supplierId) : null);
 
-        if ($this->supplierId) {
-            Supplier::findOrFail($this->supplierId)->update($data);
-            $message = 'Proveedor actualizado.';
-        } else {
-            Supplier::create($data);
-            $message = 'Proveedor creado.';
-        }
+        $message = $this->supplierId ? 'Proveedor actualizado.' : 'Proveedor creado.';
 
         $this->cancelSupplier();
         unset($this->suppliers);
@@ -156,23 +150,15 @@ class CategoriesSuppliers extends Component
         $this->resetValidation(['businessName', 'cuit', 'phone', 'email']);
     }
 
-    public function deleteSupplier(int $id): void
+    public function deleteSupplier(int $id, SupplierService $suppliers): void
     {
-        $supplier = Supplier::withCount('products')->findOrFail($id);
-
-        if ($supplier->products_count > 0) {
-            $this->dispatch('toast', message: "No se puede eliminar «{$supplier->business_name}»: tiene {$supplier->products_count} productos asignados.", type: 'error');
-
-            return;
-        }
-
-        if (StockMovement::where('supplier_id', $supplier->id)->exists()) {
-            $this->dispatch('toast', message: "No se puede eliminar «{$supplier->business_name}»: figura en el historial de reposiciones.", type: 'error');
+        try {
+            $suppliers->delete(Supplier::findOrFail($id));
+        } catch (CatalogException $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
 
             return;
         }
-
-        $supplier->delete();
 
         if ($this->supplierId === $id) {
             $this->cancelSupplier();
@@ -198,32 +184,6 @@ class CategoriesSuppliers extends Component
     public function suppliers(): Collection
     {
         return Supplier::withCount('products')->orderBy('business_name')->get();
-    }
-
-    /**
-     * Accepts "30712345671" or "30-71234567-1" and returns the dashed form.
-     */
-    protected function normalizeCuit(string $cuit): string
-    {
-        $digits = preg_replace('/\D/', '', $cuit);
-
-        if (strlen($digits) === 11) {
-            return substr($digits, 0, 2).'-'.substr($digits, 2, 8).'-'.substr($digits, 10);
-        }
-
-        return trim($cuit);
-    }
-
-    protected function uniqueSlug(string $name): string
-    {
-        $base = substr(Str::slug($name), 0, 95) ?: 'rubro';
-        $slug = $base;
-
-        for ($i = 2; Category::where('slug', $slug)->exists(); $i++) {
-            $slug = $base.'-'.$i;
-        }
-
-        return $slug;
     }
 
     public function render()

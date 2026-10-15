@@ -2,12 +2,15 @@
 
 namespace App\Livewire\Erp;
 
+use App\Exceptions\PaymentException;
+use App\Models\Payment;
 use App\Models\Producer;
 use App\Models\Sale;
+use App\Services\PaymentService;
+use App\Services\WhatsAppService;
+use App\Support\Pricing;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -18,18 +21,6 @@ use Livewire\Component;
 #[Title('Cuentas Corrientes')]
 class AccountsReceivable extends Component
 {
-    public const PAYMENT_METHODS = [
-        'efectivo' => 'Efectivo',
-        'transferencia' => 'Transferencia',
-        'cheque' => 'Cheque',
-        'tarjeta' => 'Tarjeta',
-    ];
-
-    /**
-     * Remito statuses that still carry debt.
-     */
-    public const UNPAID_STATUSES = ['pendiente', 'parcial'];
-
     public string $search = '';
 
     #[Url(as: 'productor', except: null)]
@@ -74,20 +65,18 @@ class AccountsReceivable extends Component
         $this->paymentAmount = number_format((float) $this->selectedProducer?->balance, 2, '.', '');
     }
 
-    /**
-     * Register a full or partial payment, lower the producer balance and settle the oldest remitos first.
-     */
-    public function registerPayment(): void
+    public function registerPayment(PaymentService $payments): void
     {
         if (! $this->producerId) {
             return;
         }
 
-        $this->paymentAmount = self::normalizeAmount($this->paymentAmount);
+        $amount = Pricing::parse($this->paymentAmount);
+        $this->paymentAmount = $amount === null ? trim($this->paymentAmount) : (string) $amount;
 
         $this->validate([
             'paymentAmount' => ['required', 'numeric', 'min:0.01'],
-            'paymentMethod' => ['required', Rule::in(array_keys(self::PAYMENT_METHODS))],
+            'paymentMethod' => ['required', Rule::in(array_keys(Payment::METHODS))],
             'paymentNotes' => ['nullable', 'string', 'max:500'],
         ], [
             'paymentAmount.required' => 'Ingresá el monto.',
@@ -97,61 +86,19 @@ class AccountsReceivable extends Component
             'paymentNotes.max' => 'La nota no puede superar los 500 caracteres.',
         ]);
 
-        $cents = (int) round((float) $this->paymentAmount * 100);
+        try {
+            $payment = $payments->register($this->producerId, (float) $this->paymentAmount, $this->paymentMethod, $this->paymentNotes);
+        } catch (PaymentException $e) {
+            $this->addError('paymentAmount', $e->getMessage());
 
-        DB::transaction(function () use ($cents) {
-            $producer = Producer::query()->lockForUpdate()->findOrFail($this->producerId);
-            $balanceCents = (int) round((float) $producer->balance * 100);
-
-            if ($cents > $balanceCents) {
-                throw ValidationException::withMessages([
-                    'paymentAmount' => 'El monto supera el saldo deudor ('.self::money($producer->balance).').',
-                ]);
-            }
-
-            $producer->payments()->create([
-                'amount' => $cents / 100,
-                'payment_method' => $this->paymentMethod,
-                'notes' => trim($this->paymentNotes) ?: null,
-            ]);
-
-            $producer->decrement('balance', $cents / 100);
-
-            $remaining = $cents;
-
-            $sales = $producer->sales()
-                ->where('type', 'remito')
-                ->whereIn('status', self::UNPAID_STATUSES)
-                ->orderBy('created_at')
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
-
-            foreach ($sales as $sale) {
-                if ($remaining <= 0) {
-                    break;
-                }
-
-                $totalCents = (int) round((float) $sale->total * 100);
-                $paidCents = (int) round((float) $sale->paid * 100);
-                $applied = min($totalCents - $paidCents, $remaining);
-                $paidCents += $applied;
-                $remaining -= $applied;
-
-                $sale->update([
-                    'paid' => $paidCents / 100,
-                    'status' => $paidCents >= $totalCents ? 'pagada' : 'parcial',
-                ]);
-            }
-        });
-
-        $amount = self::money($cents / 100);
+            return;
+        }
 
         $this->showPaymentModal = false;
         $this->reset('paymentAmount', 'paymentMethod', 'paymentNotes');
         unset($this->producers, $this->selectedProducer, $this->unpaidSales, $this->recentPayments, $this->totalDebt);
 
-        $this->alert = "Pago de {$amount} registrado. Nuevo saldo: ".self::money($this->selectedProducer->balance).'.';
+        $this->alert = 'Pago de '.Pricing::moneyWithCents($payment->amount).' registrado. Nuevo saldo: '.Pricing::moneyWithCents($this->selectedProducer->balance).'.';
     }
 
     /**
@@ -160,28 +107,21 @@ class AccountsReceivable extends Component
     #[Computed]
     public function balanceAfterPayment(): ?float
     {
-        $amount = self::normalizeAmount($this->paymentAmount);
+        $amount = Pricing::parse($this->paymentAmount);
 
-        if (! $this->selectedProducer || ! is_numeric($amount)) {
+        if (! $this->selectedProducer || $amount === null) {
             return null;
         }
 
-        return round((float) $this->selectedProducer->balance - (float) $amount, 2);
+        return round((float) $this->selectedProducer->balance - $amount, 2);
     }
 
     #[Computed]
     public function producers(): Collection
     {
-        $term = trim($this->search);
-
         return Producer::query()
-            ->when($term !== '', fn ($query) => $query->where(fn ($query) => $query
-                ->where('name', 'like', "%{$term}%")
-                ->orWhere('business_name', 'like', "%{$term}%")
-                ->orWhere('cuit', 'like', "%{$term}%")))
-            ->withCount(['sales as unpaid_count' => fn ($query) => $query
-                ->where('type', 'remito')
-                ->whereIn('status', self::UNPAID_STATUSES)])
+            ->search($this->search)
+            ->withUnpaidCount()
             ->orderByDesc('balance')
             ->orderBy('name')
             ->get();
@@ -212,10 +152,7 @@ class AccountsReceivable extends Component
         return Sale::query()
             ->with('saleItems.product')
             ->where('producer_id', $this->producerId)
-            ->where('type', 'remito')
-            ->whereIn('status', self::UNPAID_STATUSES)
-            ->orderBy('created_at')
-            ->orderBy('id')
+            ->unpaidRemitos()
             ->get();
     }
 
@@ -225,80 +162,18 @@ class AccountsReceivable extends Component
         return $this->selectedProducer?->payments()->latest()->latest('id')->limit(5)->get() ?? collect();
     }
 
-    /**
-     * WhatsApp link with the balance and unpaid remitos, addressed to the producer's phone when available.
-     */
     #[Computed]
     public function whatsappUrl(): ?string
     {
-        $producer = $this->selectedProducer;
-
-        if (! $producer) {
-            return null;
-        }
-
-        $lines = [
-            "Hola {$producer->name}, le escribimos de la veterinaria.",
-            'Su saldo en cuenta corriente al '.today()->format('d/m/Y').' es de *'.self::money($producer->balance).'*.',
-        ];
-
-        if ($this->unpaidSales->isNotEmpty()) {
-            $lines[] = '';
-            $lines[] = 'Remitos impagos:';
-
-            foreach ($this->unpaidSales as $sale) {
-                $due = (float) $sale->total - (float) $sale->paid;
-                $line = "• {$sale->voucher_number} del {$sale->created_at->format('d/m/Y')}: ".self::money($due);
-
-                if ($sale->status === 'parcial') {
-                    $line .= ' (pendiente de un total de '.self::money($sale->total).')';
-                }
-
-                $lines[] = $line;
-            }
-        }
-
-        $lines[] = '';
-        $lines[] = 'Quedamos a disposición por cualquier consulta. ¡Muchas gracias!';
-
-        return 'https://wa.me/'.($this->whatsappPhone($producer->phone) ?? '').'?text='.rawurlencode(implode("\n", $lines));
+        return $this->selectedProducer
+            ? app(WhatsAppService::class)->balanceReminderUrl($this->selectedProducer, $this->unpaidSales)
+            : null;
     }
 
     public function render()
     {
         return view('livewire.erp.accounts-receivable', [
-            'methods' => self::PAYMENT_METHODS,
+            'methods' => Payment::METHODS,
         ]);
-    }
-
-    /**
-     * Normalize an Argentine phone number to the international format WhatsApp expects (549 + area + number).
-     */
-    protected function whatsappPhone(?string $phone): ?string
-    {
-        $digits = preg_replace('/\D+/', '', (string) $phone);
-
-        if ($digits === '') {
-            return null;
-        }
-
-        return str_starts_with($digits, '54') ? $digits : '549'.ltrim($digits, '0');
-    }
-
-    /**
-     * Accept "1500.50" as well as the local "1.500,50" and "25.000" notations.
-     */
-    protected static function normalizeAmount(string $amount): string
-    {
-        $amount = str_replace([' ', '$'], '', trim($amount));
-
-        return str_contains($amount, ',') || preg_match('/^\d{1,3}(\.\d{3})+$/', $amount)
-            ? str_replace(',', '.', str_replace('.', '', $amount))
-            : $amount;
-    }
-
-    protected static function money(mixed $amount): string
-    {
-        return '$ '.number_format((float) $amount, 2, ',', '.');
     }
 }

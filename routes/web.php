@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\InventoryExportController;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
@@ -11,8 +12,6 @@ use App\Livewire\Erp\CategoriesSuppliers;
 use App\Livewire\Erp\DailyAudit;
 use App\Livewire\Erp\InventoryCatalog;
 use App\Livewire\Pos\PosDesk;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -22,13 +21,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/restablecer-contrasena/{token}', ResetPassword::class)->name('password.reset');
 });
 
-Route::post('/logout', function (Request $request) {
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return redirect()->route('login');
-})->middleware('auth')->name('logout');
+Route::post('/logout', LogoutController::class)->middleware('auth')->name('logout');
 
 Route::middleware('auth')->group(function () {
     Route::redirect('/', '/pos');

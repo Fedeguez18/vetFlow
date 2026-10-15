@@ -67,7 +67,7 @@
                                         @error('form.barcode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
-                                        <label for="pf-sku" class="{{ $label }}">SKU</label>
+                                        <label for="pf-sku" class="{{ $label }}">Código (SKU)</label>
                                         <input id="pf-sku" type="text" wire:model="form.sku" autocomplete="off" placeholder="Ej. IVM-315-500" class="{{ $input }} font-mono uppercase">
                                         @error('form.sku') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
@@ -84,11 +84,12 @@
                                     <div>
                                         <label for="pf-category" class="{{ $label }}">Rubro</label>
                                         <select id="pf-category" wire:model="form.category_id" class="{{ $input }}">
-                                            <option value="">Sin rubro</option>
+                                            <option value="">Elegí un rubro</option>
                                             @foreach ($this->categories as $category)
                                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
                                             @endforeach
                                         </select>
+                                        @error('form.category_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
                                         <label for="pf-supplier" class="{{ $label }}">Proveedor</label>
