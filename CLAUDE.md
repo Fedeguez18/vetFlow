@@ -1,3 +1,28 @@
+veteFlow — Guidelines & Architecture
+System Overview
+- Project: veteFlow — POS & ERP for rural/livestock veterinary (large cattle/horses, ranches, ear tags, field dispatch vouchers).
+- Stack: Laravel 11.x, PHP 8.2+, SQLite (database/database.sqlite), Livewire 3, Tailwind CSS, Alpine.js.
+- UI Architecture: 100% Full-width layouts (no sidebars). Top horizontal navigation bar. Colors: Emerald/Teal brand palette, Slate neutrals. Typography: Plus Jakarta Sans & JetBrains Mono.
+Deployment Topology (Two Physical Terminals)
+- Station 1 (POS Mostrador): Fast checkout desk (/pos). Dedicated layout resources/views/layouts/pos.blade.php. Clean interface for barcode scanning and dispatch, without ERP navigation tabs.
+- Station 2 (ERP Administración): Administrative back-office (/erp/*). Dedicated layout resources/views/layouts/erp.blade.php. Navigation tabs for Inventory, Accounts Receivable, and Cash Audit.
+- Visual Integrity: PRESERVE 100% of existing Blade markup, classes, and Livewire logic already generated. Only reorganize layouts, routes, and namespaces.
+Core Modules & Routes
+1. /pos — Fast billing desk, USB barcode scanner autofocus, ranch/producer selector, Cash vs. Account Credit (Remito) payments (layouts.pos).
+2. /erp/inventario (o /inventario) — Livestock pharmaceutical catalog, vaccines with lot expiry traffic light (remaining days), stock control, "+5 Reponer" inline button (layouts.erp).
+3. /erp/cuentas-corrientes (o /cuentas-corrientes) — Master-detail panel for ranches with ARS debit balance, pending dispatch vouchers, partial payments & receipt emission, WhatsApp link (layouts.erp).
+4. /erp/auditoria (o /auditoria) — Daily cash audit, cash vs. bank transfer/QR split, transaction log (layouts.erp).
+Code Standards & Conventions
+- Naming: English for database tables, migrations, models, and relations (Product, Producer, Sale, SaleItem, Payment).
+- Domain fields: Spanish for veterinary/rural attributes when facing business logic/views (saldo_cuenta_corriente, lote_vencimiento, remito).
+- Integrity: Always wrap inventory updates, checkouts, and debt movements in DB::transaction() with pessimistic locking (lockForUpdate()) where appropriate.
+- Deletions: Soft deletes / logical flags (is_active) on products to protect financial logs.
+Claude Code Execution Directives
+- Zero fluff: Do not provide theoretical explanations, tutorials, or markdown summaries after editing files. Apply changes directly and report only file paths modified.
+- Single-file slices: Modify or generate one file at a time unless explicitly commanded otherwise.
+- Never inspect or edit: vendor/, node_modules/, storage/, bootstrap/cache/, public/build/.
+
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
