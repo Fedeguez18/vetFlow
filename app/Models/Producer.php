@@ -7,13 +7,24 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'business_name', 'cuit', 'phone', 'iva_condition', 'discount_percent', 'balance'])]
+#[Fillable(['name', 'business_name', 'cuit', 'phone', 'iva_condition', 'discount_percent', 'balance', 'is_active'])]
 class Producer extends Model
 {
     /**
      * Name of the generic walk-in customer record.
      */
     public const WALK_IN = 'Consumidor Final';
+
+    public const IVA_CONDITIONS = ['Responsable Inscripto', 'Monotributista', 'Exento', 'Consumidor Final'];
+
+    /**
+     * The model's default values for attributes.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -25,7 +36,23 @@ class Producer extends Model
         return [
             'discount_percent' => 'decimal:2',
             'balance' => 'decimal:2',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function isWalkIn(): bool
+    {
+        return $this->name === self::WALK_IN;
+    }
+
+    /**
+     * Only accounts that were not given a baja.
+     *
+     * @param  Builder<Producer>  $query
+     */
+    public function scopeActive(Builder $query): void
+    {
+        $query->where('is_active', true);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Livewire\Erp;
 
 use App\Exceptions\PaymentException;
+use App\Livewire\Forms\ProducerForm;
 use App\Models\Payment;
 use App\Models\Producer;
 use App\Models\Sale;
@@ -10,6 +11,7 @@ use App\Services\PaymentService;
 use App\Services\WhatsAppService;
 use App\Support\Pricing;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -34,13 +36,116 @@ class AccountsReceivable extends Component
 
     public string $paymentNotes = '';
 
+    public bool $showInactive = false;
+
+    public bool $showCreateModal = false;
+
+    public ProducerForm $form;
+
     public ?string $alert = null;
+
+    public string $alertType = 'success';
 
     public function selectProducer(int $producerId): void
     {
         $this->producerId = $producerId;
         $this->alert = null;
         $this->closePaymentModal();
+    }
+
+    public function openCreateModal(): void
+    {
+        $this->form->reset();
+        $this->resetValidation();
+        $this->showPaymentModal = false;
+        $this->showCreateModal = true;
+    }
+
+    public function closeCreateModal(): void
+    {
+        $this->showCreateModal = false;
+        $this->resetValidation();
+    }
+
+    public function createProducer(): void
+    {
+        $this->form->normalize();
+        $this->form->validate();
+
+        $producer = Producer::create($this->form->attributes());
+
+        $this->showCreateModal = false;
+        $this->form->reset();
+        $this->search = '';
+        $this->producerId = $producer->id;
+        $this->forgetProducerCaches();
+
+        $this->notify("Cuenta de {$producer->name} creada.");
+    }
+
+    /**
+     * Give the account a baja: it disappears from the POS and the list, its history is kept.
+     * Only accounts without balance can be closed so no debt is left hidden.
+     */
+    public function deactivateProducer(): void
+    {
+        if (! $this->producerId) {
+            return;
+        }
+
+        $error = DB::transaction(function () {
+            $producer = Producer::query()->lockForUpdate()->findOrFail($this->producerId);
+
+            if ($producer->isWalkIn()) {
+                return 'La cuenta de Consumidor Final no se puede dar de baja.';
+            }
+
+            if ((float) $producer->balance !== 0.0) {
+                return 'No se puede dar de baja una cuenta con saldo ('.Pricing::moneyWithCents($producer->balance).'). Cancelá la deuda primero.';
+            }
+
+            $producer->update(['is_active' => false]);
+
+            return null;
+        });
+
+        if ($error) {
+            $this->notify($error, 'error');
+
+            return;
+        }
+
+        $this->closePaymentModal();
+        $this->forgetProducerCaches();
+        $this->notify("Cuenta de {$this->selectedProducer->name} dada de baja.");
+
+        if (! $this->showInactive) {
+            $this->producerId = null;
+        }
+    }
+
+    public function reactivateProducer(): void
+    {
+        $producer = $this->selectedProducer;
+
+        if (! $producer || $producer->is_active) {
+            return;
+        }
+
+        $producer->update(['is_active' => true]);
+        $this->forgetProducerCaches();
+        $this->notify("Cuenta de {$producer->name} reactivada.");
+    }
+
+    protected function notify(string $message, string $type = 'success'): void
+    {
+        $this->alert = $message;
+        $this->alertType = $type;
+    }
+
+    protected function forgetProducerCaches(): void
+    {
+        unset($this->producers, $this->selectedProducer, $this->unpaidSales, $this->recentPayments, $this->totalDebt);
     }
 
     public function openPaymentModal(): void
@@ -96,9 +201,9 @@ class AccountsReceivable extends Component
 
         $this->showPaymentModal = false;
         $this->reset('paymentAmount', 'paymentMethod', 'paymentNotes');
-        unset($this->producers, $this->selectedProducer, $this->unpaidSales, $this->recentPayments, $this->totalDebt);
+        $this->forgetProducerCaches();
 
-        $this->alert = 'Pago de '.Pricing::moneyWithCents($payment->amount).' registrado. Nuevo saldo: '.Pricing::moneyWithCents($this->selectedProducer->balance).'.';
+        $this->notify('Pago de '.Pricing::moneyWithCents($payment->amount).' registrado. Nuevo saldo: '.Pricing::moneyWithCents($this->selectedProducer->balance).'.');
     }
 
     /**
@@ -120,8 +225,10 @@ class AccountsReceivable extends Component
     public function producers(): Collection
     {
         return Producer::query()
+            ->when(! $this->showInactive, fn ($query) => $query->active())
             ->search($this->search)
             ->withUnpaidCount()
+            ->orderByDesc('is_active')
             ->orderByDesc('balance')
             ->orderBy('name')
             ->get();
@@ -174,6 +281,7 @@ class AccountsReceivable extends Component
     {
         return view('livewire.erp.accounts-receivable', [
             'methods' => Payment::METHODS,
+            'ivaConditions' => Producer::IVA_CONDITIONS,
         ]);
     }
 }

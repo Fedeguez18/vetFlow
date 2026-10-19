@@ -247,6 +247,7 @@ class PosDesk extends Component
     public function producers(): Collection
     {
         return Producer::query()
+            ->active()
             ->where('name', '!=', Producer::WALK_IN)
             ->orderBy('name')
             ->get(['id', 'name', 'business_name', 'cuit', 'balance']);

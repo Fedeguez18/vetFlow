@@ -5,9 +5,13 @@
     $producer = $this->selectedProducer;
 @endphp
 
-<div class="grid gap-6 lg:grid-cols-3" x-on:keydown.escape.window="$wire.showPaymentModal && $wire.closePaymentModal()">
+<div class="grid gap-6 lg:grid-cols-3" x-on:keydown.escape.window="$wire.showPaymentModal && $wire.closePaymentModal(); $wire.showCreateModal && $wire.closeCreateModal()">
     @if ($alert)
-        <div class="flex items-start justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 lg:col-span-3">
+        <div @class([
+            'flex items-start justify-between gap-4 rounded-xl border px-4 py-3 text-sm font-medium lg:col-span-3',
+            'border-emerald-200 bg-emerald-50 text-emerald-700' => $alertType === 'success',
+            'border-rose-200 bg-rose-50 text-rose-700' => $alertType === 'error',
+        ])>
             <span>{{ $alert }}</span>
             <button type="button" wire:click="$set('alert', null)" class="opacity-60 hover:opacity-100">&times;</button>
         </div>
@@ -16,9 +20,18 @@
     {{-- Master: producers --}}
     <section class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:max-h-[calc(100vh-11rem)]">
         <div class="space-y-3 border-b border-slate-200 p-4">
-            <div class="flex items-baseline justify-between">
-                <h1 class="font-semibold text-slate-900">Estancias / Productores</h1>
-                <span class="text-xs text-slate-500">{{ $this->producers->count() }}</span>
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-baseline gap-2">
+                    <h1 class="font-semibold text-slate-900">Estancias / Productores</h1>
+                    <span class="text-xs text-slate-500">{{ $this->producers->count() }}</span>
+                </div>
+                <button
+                    type="button"
+                    wire:click="openCreateModal"
+                    class="shrink-0 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:from-emerald-400 hover:to-teal-400"
+                >
+                    + Nueva cuenta
+                </button>
             </div>
             <div class="flex items-baseline justify-between rounded-lg bg-slate-900 px-3 py-2">
                 <span class="text-xs uppercase tracking-wide text-slate-400">Total adeudado</span>
@@ -31,6 +44,10 @@
                 placeholder="Buscar por nombre, razón social o CUIT…"
                 class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/15"
             >
+            <label class="flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" wire:model.live="showInactive" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20">
+                Mostrar cuentas dadas de baja
+            </label>
         </div>
 
         <ul class="flex-1 divide-y divide-slate-100 overflow-y-auto">
@@ -43,10 +60,16 @@
                             'flex w-full items-center justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors',
                             'border-emerald-500 bg-emerald-50' => $producerId === $item->id,
                             'border-transparent hover:bg-slate-50' => $producerId !== $item->id,
+                            'opacity-50' => ! $item->is_active,
                         ])
                     >
                         <span class="min-w-0">
-                            <span class="block truncate font-medium text-slate-800">{{ $item->name }}</span>
+                            <span class="block truncate font-medium text-slate-800">
+                                {{ $item->name }}
+                                @unless ($item->is_active)
+                                    <span class="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Baja</span>
+                                @endunless
+                            </span>
                             <span class="block truncate text-xs text-slate-500">
                                 {{ $item->business_name ?? ($item->cuit ?? 'Sin datos fiscales') }}
                             </span>
@@ -65,7 +88,7 @@
                 </li>
             @empty
                 <li class="px-4 py-10 text-center text-sm text-slate-500">
-                    {{ trim($search) !== '' ? 'Ningún productor coincide con la búsqueda.' : 'Todavía no hay productores cargados.' }}
+                    {{ trim($search) !== '' ? 'Ningún productor coincide con la búsqueda.' : 'Todavía no hay productores cargados. Creá una cuenta con "+ Nueva cuenta".' }}
                 </li>
             @endforelse
         </ul>
@@ -80,7 +103,12 @@
         @else
             <div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div>
-                    <h2 class="text-lg font-semibold text-slate-900">{{ $producer->name }}</h2>
+                    <h2 class="text-lg font-semibold text-slate-900">
+                        {{ $producer->name }}
+                        @unless ($producer->is_active)
+                            <span class="ml-1 rounded-full bg-slate-200 px-2 py-0.5 align-middle text-xs font-semibold text-slate-600">Dada de baja</span>
+                        @endunless
+                    </h2>
                     <p class="text-sm text-slate-500">
                         {{ collect([$producer->business_name, $producer->cuit ? 'CUIT '.$producer->cuit : null, $producer->phone ? 'Tel. '.$producer->phone : null])->filter()->join(' · ') ?: 'Sin datos de contacto' }}
                     </p>
@@ -92,6 +120,28 @@
                     </span>
                 </div>
                 <div class="flex w-full flex-wrap justify-end gap-2">
+                    @unless ($producer->isWalkIn())
+                        @if ($producer->is_active)
+                            <button
+                                type="button"
+                                wire:click="deactivateProducer"
+                                wire:confirm="¿Dar de baja la cuenta de {{ $producer->name }}? No va a aparecer más en el mostrador; el historial se conserva."
+                                @disabled($producer->balance != 0)
+                                title="{{ $producer->balance != 0 ? 'Para dar de baja la cuenta el saldo tiene que estar en cero.' : '' }}"
+                                class="mr-auto rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                Dar de baja
+                            </button>
+                        @else
+                            <button
+                                type="button"
+                                wire:click="reactivateProducer"
+                                class="mr-auto rounded-xl border border-emerald-600 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                            >
+                                Reactivar cuenta
+                            </button>
+                        @endif
+                    @endunless
                     <a
                         href="{{ $this->whatsappUrl }}"
                         target="_blank"
@@ -282,6 +332,73 @@
                     >
                         <span wire:loading.remove wire:target="registerPayment">Confirmar pago</span>
                         <span wire:loading wire:target="registerPayment">Guardando…</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    @endif
+
+    {{-- New account modal --}}
+    @if ($showCreateModal)
+        @php($input = 'w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/15')
+        @php($label = 'mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500')
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" wire:click.self="closeCreateModal">
+            <form wire:submit="createProducer" class="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Nueva cuenta corriente</h2>
+                    <p class="text-sm text-slate-500">Estancia o productor que va a poder llevar mercadería a remito.</p>
+                </div>
+
+                <div>
+                    <label for="producer-name" class="{{ $label }}">Nombre / Estancia</label>
+                    <input id="producer-name" type="text" wire:model="form.name" x-init="$nextTick(() => $el.focus())" autocomplete="off" placeholder="Estancia La Josefina" class="{{ $input }}">
+                    @error('form.name') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="producer-business-name" class="{{ $label }}">Razón social / Titular</label>
+                    <input id="producer-business-name" type="text" wire:model="form.business_name" autocomplete="off" class="{{ $input }}">
+                    @error('form.business_name') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="producer-cuit" class="{{ $label }}">CUIT</label>
+                        <input id="producer-cuit" type="text" inputmode="numeric" wire:model="form.cuit" autocomplete="off" placeholder="20-12345678-9" class="{{ $input }} font-mono">
+                        @error('form.cuit') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label for="producer-phone" class="{{ $label }}">Teléfono (WhatsApp)</label>
+                        <input id="producer-phone" type="tel" wire:model="form.phone" autocomplete="off" placeholder="358 412-3344" class="{{ $input }}">
+                        @error('form.phone') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label for="producer-iva" class="{{ $label }}">Condición IVA</label>
+                        <select id="producer-iva" wire:model="form.iva_condition" class="{{ $input }}">
+                            <option value="">Sin especificar</option>
+                            @foreach ($ivaConditions as $condition)
+                                <option value="{{ $condition }}">{{ $condition }}</option>
+                            @endforeach
+                        </select>
+                        @error('form.iva_condition') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label for="producer-discount" class="{{ $label }}">Descuento (%)</label>
+                        <input id="producer-discount" type="text" inputmode="decimal" wire:model="form.discount_percent" autocomplete="off" class="{{ $input }} text-right tabular-nums">
+                        @error('form.discount_percent') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" wire:click="closeCreateModal" class="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancelar</button>
+                    <button
+                        type="submit"
+                        wire:loading.attr="disabled"
+                        wire:target="createProducer"
+                        class="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50"
+                    >
+                        <span wire:loading.remove wire:target="createProducer">Crear cuenta</span>
+                        <span wire:loading wire:target="createProducer">Guardando…</span>
                     </button>
                 </div>
             </form>

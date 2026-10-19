@@ -42,6 +42,10 @@ class CheckoutService
                 ? Producer::query()->lockForUpdate()->findOrFail($producerId)
                 : null;
 
+            if ($producer && ! $producer->is_active) {
+                throw new Exception("La cuenta de {$producer->name} está dada de baja.");
+            }
+
             $products = [];
             $items = [];
             $total = 0.0;
