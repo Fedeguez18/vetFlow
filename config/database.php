@@ -97,6 +97,11 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            /*
+             * Neon's pooler keeps server-side prepared statements alive across requests, so after a
+             * migration adds columns a cached "select *" fails with "cached plan must not change result type".
+             */
+            'options' => [PDO::ATTR_EMULATE_PREPARES => true],
         ],
 
         /*

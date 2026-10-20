@@ -21,14 +21,14 @@ class InventoryExportService
         $sort = array_key_exists($sort, Product::SORTS) ? $sort : 'name';
 
         fwrite($output, "\xEF\xBB\xBF");
-        fputcsv($output, self::HEADERS, ';');
+        fputcsv($output, self::HEADERS, ';', escape: '\\');
 
         Product::query()
             ->with(['category', 'supplier', 'nextLot'])
             ->inventory($search, $categoryId, $sort)
             ->chunk(200, function ($products) use ($output) {
                 foreach ($products as $product) {
-                    fputcsv($output, $this->row($product), ';');
+                    fputcsv($output, $this->row($product), ';', escape: '\\');
                 }
             });
     }

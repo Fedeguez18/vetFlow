@@ -98,7 +98,7 @@
             </div>
 
             <div class="flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-xl border border-slate-200 p-1">
-                @foreach ([null => 'Todos'] + $this->categories->pluck('name', 'id')->all() as $id => $name)
+                @foreach (['' => 'Todos'] + $this->categories->pluck('name', 'id')->all() as $id => $name)
                     <button
                         type="button"
                         wire:key="chip-{{ $id ?: 'all' }}"
@@ -235,7 +235,7 @@
                                         type="button"
                                         wire:click="$dispatch('product-restock', { productId: {{ $product->id }} })"
                                         class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
-                                    >git
+                                    >
                                         Reponer
                                     </button>
                                     <button

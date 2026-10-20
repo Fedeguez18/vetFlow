@@ -115,7 +115,7 @@
 
         {{-- Category chips --}}
         <div class="flex gap-2 overflow-x-auto pb-1">
-            @foreach ([null => 'Todos'] + $this->categories->pluck('name', 'id')->all() as $id => $label)
+            @foreach (['' => 'Todos'] + $this->categories->pluck('name', 'id')->all() as $id => $label)
                 <button
                     type="button"
                     wire:key="category-{{ $id ?: 'all' }}"
@@ -395,6 +395,6 @@
 
     {{-- Printable ticket (copied into a hidden iframe on print) --}}
     <div x-ref="ticket" class="hidden">
-        @include('livewire.pos.partials.ticket', ['sale' => $this->lastSale, 'paymentLabel' => $methods[$lastPaymentMethod] ?? ''])
+        @include('livewire.pos.partials.ticket', ['sale' => $this->lastSale, 'paymentLabel' => $methods[$lastPaymentMethod ?? ''] ?? ''])
     </div>
 </div>
