@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'business_name', 'cuit', 'phone', 'iva_condition', 'discount_percent', 'balance', 'is_active'])]
+#[Fillable(['name', 'business_name', 'cuit', 'phone', 'iva_condition', 'discount_percent', 'balance', 'credit_limit', 'is_active'])]
 class Producer extends Model
 {
     /**
@@ -36,6 +36,7 @@ class Producer extends Model
         return [
             'discount_percent' => 'decimal:2',
             'balance' => 'decimal:2',
+            'credit_limit' => 'decimal:2',
             'is_active' => 'boolean',
         ];
     }
@@ -43,6 +44,31 @@ class Producer extends Model
     public function isWalkIn(): bool
     {
         return $this->name === self::WALK_IN;
+    }
+
+    /**
+     * Saldo acreedor: the producer paid more than they owed.
+     */
+    public function hasCreditBalance(): bool
+    {
+        return (float) $this->balance < 0;
+    }
+
+    /**
+     * How much more can be charged before reaching the credit limit (null when there is no limit).
+     */
+    public function availableCredit(): ?float
+    {
+        return $this->credit_limit === null ? null : round((float) $this->credit_limit - (float) $this->balance, 2);
+    }
+
+    /**
+     * Whether charging the amount would take the balance above the credit limit.
+     */
+    public function exceedsCreditLimit(float $charge): bool
+    {
+        return $this->credit_limit !== null
+            && (int) round(((float) $this->balance + $charge) * 100) > (int) round((float) $this->credit_limit * 100);
     }
 
     /**
@@ -100,5 +126,15 @@ class Producer extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get the credit notes issued to the producer.
+     *
+     * @return HasMany<CreditNote, $this>
+     */
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(CreditNote::class);
     }
 }

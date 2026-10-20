@@ -25,7 +25,11 @@
             </span>
             <span class="block truncate text-[11px] text-slate-400">
                 @if ($producer)
-                    {{ collect([$producer->cuit ? 'CUIT: '.$producer->cuit : null, 'Saldo: '.Pricing::money($producer->balance)])->filter()->join(' · ') }}
+                    {{ collect([
+                        $producer->cuit ? 'CUIT: '.$producer->cuit : null,
+                        $producer->hasCreditBalance() ? 'A favor: '.Pricing::money(-$producer->balance) : 'Saldo: '.Pricing::money($producer->balance),
+                        $producer->credit_limit !== null ? 'Límite: '.Pricing::money($producer->credit_limit) : null,
+                    ])->filter()->join(' · ') }}
                 @elseif ($onAccount)
                     <span class="font-medium text-amber-600">Elegí el productor / estancia para el remito</span>
                 @else

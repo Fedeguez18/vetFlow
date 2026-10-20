@@ -207,6 +207,9 @@
                         <button type="button" x-on:click="printTicket()" class="mt-0.5 text-xs font-medium text-teal-700 hover:text-teal-900">
                             Reimprimir {{ $this->lastSale->voucher_number }}
                         </button>
+                        @if ($this->lastSale->type === 'remito')
+                            <a href="{{ route('erp.remitos.pdf', $this->lastSale) }}" target="_blank" rel="noopener" class="ml-2 mt-0.5 text-xs font-medium text-teal-700 hover:text-teal-900">Remito A4 (PDF)</a>
+                        @endif
                     @endif
                 </div>
                 <span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -271,6 +274,34 @@
                     </span>
                     <span class="rounded bg-emerald-200/70 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-emerald-800">PENDIENTE</span>
                 </div>
+
+                @if ($producer?->hasCreditBalance())
+                    <div class="rounded-[10px] border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-800">
+                        Tiene {{ $money(-$producer->balance) }} a favor: se descuenta de este remito.
+                    </div>
+                @endif
+
+                @if ($creditLimitWarning)
+                    <div class="space-y-2 rounded-[10px] border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                        <p class="font-semibold">{{ $creditLimitWarning }}</p>
+                        <div class="flex gap-2">
+                            <button type="button" wire:click="$set('creditLimitWarning', null)" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold hover:bg-amber-100">Cancelar</button>
+                            <button
+                                type="button"
+                                wire:click="confirm(true)"
+                                wire:loading.attr="disabled"
+                                wire:target="confirm"
+                                class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-500 disabled:opacity-50"
+                            >
+                                Emitir el remito igual
+                            </button>
+                        </div>
+                    </div>
+                @elseif ($this->exceedsCreditLimit)
+                    <div class="rounded-[10px] border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                        Este remito supera el límite de crédito ({{ $money($producer->credit_limit) }}, disponible {{ $money(max(0, $producer->availableCredit())) }}). Se va a pedir confirmación.
+                    </div>
+                @endif
             @endif
 
             <div class="space-y-1 text-sm">

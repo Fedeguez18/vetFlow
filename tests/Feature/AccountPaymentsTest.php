@@ -51,6 +51,19 @@ class AccountPaymentsTest extends TestCase
         $this->assertSame('entrega', $this->producer->payments()->sole()->notes);
     }
 
+    public function test_a_payment_with_cents_settles_the_older_remito_and_leaves_the_exact_rest(): void
+    {
+        $this->older->update(['total' => 27879.15]);
+        $this->newer->update(['total' => 73079.65]);
+        $this->producer->update(['balance' => 100958.80]);
+
+        app(PaymentService::class)->register($this->producer->id, 100757.80, 'transferencia');
+
+        $this->assertSame(['pagada', '27879.15'], [$this->older->fresh()->status, $this->older->fresh()->paid]);
+        $this->assertSame(['parcial', '72878.65'], [$this->newer->fresh()->status, $this->newer->fresh()->paid]);
+        $this->assertSame('201.00', $this->producer->fresh()->balance);
+    }
+
     public function test_paying_the_full_balance_settles_every_remito(): void
     {
         app(PaymentService::class)->register($this->producer->id, 3000, 'transferencia');
@@ -59,13 +72,22 @@ class AccountPaymentsTest extends TestCase
         $this->assertSame(0, Sale::whereIn('status', Sale::UNPAID_STATUSES)->count());
     }
 
-    public function test_a_payment_above_the_balance_is_rejected_without_changes(): void
+    public function test_a_payment_above_the_balance_leaves_a_credit_balance(): void
+    {
+        app(PaymentService::class)->register($this->producer->id, 3500, 'efectivo');
+
+        $this->assertSame('-500.00', $this->producer->fresh()->balance);
+        $this->assertTrue($this->producer->fresh()->hasCreditBalance());
+        $this->assertSame(0, Sale::whereIn('status', Sale::UNPAID_STATUSES)->count());
+    }
+
+    public function test_a_zero_payment_is_rejected_without_changes(): void
     {
         try {
-            app(PaymentService::class)->register($this->producer->id, 3000.01, 'efectivo');
-            $this->fail('El pago mayor al saldo tendría que fallar.');
+            app(PaymentService::class)->register($this->producer->id, 0, 'efectivo');
+            $this->fail('El pago en cero tendría que fallar.');
         } catch (PaymentException $e) {
-            $this->assertSame('El monto supera el saldo deudor ($ 3.000,00).', $e->getMessage());
+            $this->assertSame('El monto tiene que ser mayor a cero.', $e->getMessage());
         }
 
         $this->assertSame('3000.00', $this->producer->fresh()->balance);
@@ -83,7 +105,10 @@ class AccountPaymentsTest extends TestCase
             ->call('registerPayment')
             ->assertHasNoErrors()
             ->assertSet('showPaymentModal', false)
-            ->assertSet('alert', 'Pago de $ 1.500,50 registrado. Nuevo saldo: $ 1.499,50.');
+            ->assertSet('paymentSuccess.amount', 1500.5)
+            ->assertSet('paymentSuccess.balance', 1499.5)
+            ->assertSee('$ 1.500,50')
+            ->assertSee('$ 1.499,50');
 
         $this->assertSame('1499.50', $this->producer->fresh()->balance);
     }
@@ -96,10 +121,9 @@ class AccountPaymentsTest extends TestCase
             ->set('paymentAmount', 'abc')
             ->call('registerPayment')
             ->assertHasErrors(['paymentAmount' => 'numeric'])
-            ->set('paymentAmount', '5000')
+            ->set('paymentAmount', '0')
             ->call('registerPayment')
-            ->assertHasErrors('paymentAmount')
-            ->assertSee('El monto supera el saldo deudor ($ 3.000,00).')
+            ->assertHasErrors(['paymentAmount' => 'min'])
             ->assertSet('showPaymentModal', true);
 
         $this->assertSame(0, $this->producer->payments()->count());

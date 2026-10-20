@@ -18,7 +18,9 @@ class WhatsAppService
     {
         $lines = [
             "Hola {$producer->name}, le escribimos de la veterinaria.",
-            'Su saldo en cuenta corriente al '.today()->format('d/m/Y').' es de *'.Pricing::moneyWithCents($producer->balance).'*.',
+            $producer->hasCreditBalance()
+                ? 'Al '.today()->format('d/m/Y').' tiene un saldo a favor en cuenta corriente de *'.Pricing::moneyWithCents(-(float) $producer->balance).'*.'
+                : 'Su saldo en cuenta corriente al '.today()->format('d/m/Y').' es de *'.Pricing::moneyWithCents($producer->balance).'*.',
         ];
 
         if ($unpaidRemitos->isNotEmpty()) {

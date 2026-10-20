@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountPdfController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\InventoryExportController;
 use App\Livewire\Auth\ForgotPassword;
@@ -37,6 +38,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventario', InventoryCatalog::class)->name('inventory');
         Route::get('/inventario/exportar', InventoryExportController::class)->name('inventory.export');
         Route::get('/cuentas-corrientes', AccountsReceivable::class)->name('accounts');
+        Route::get('/cuentas-corrientes/{producer}/resumen.pdf', [AccountPdfController::class, 'statement'])->name('accounts.statement-pdf');
+        Route::get('/cuentas-corrientes/{producer}/remitos.pdf', [AccountPdfController::class, 'remitosDetail'])->name('accounts.remitos-pdf');
+        Route::get('/remitos/{sale}/pdf', [AccountPdfController::class, 'remito'])->name('remitos.pdf');
+        Route::get('/pagos/{payment}/recibo.pdf', [AccountPdfController::class, 'receipt'])->name('payments.receipt-pdf');
         Route::get('/auditoria', DailyAudit::class)->name('audit');
         Route::get('/rubros-proveedores', CategoriesSuppliers::class)->name('catalogs');
     });

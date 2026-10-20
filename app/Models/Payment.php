@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -29,6 +30,16 @@ class Payment extends Model
         return [
             'amount' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Receipt number: P-00000001.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function voucherNumber(): Attribute
+    {
+        return Attribute::get(fn () => sprintf('P-%08d', $this->id));
     }
 
     /**

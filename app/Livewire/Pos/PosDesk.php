@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pos;
 
+use App\Exceptions\CreditLimitException;
 use App\Models\Category;
 use App\Models\Producer;
 use App\Models\Product;
@@ -55,6 +56,11 @@ class PosDesk extends Component
     public ?string $alert = null;
 
     public string $alertType = 'error';
+
+    /**
+     * Set when the remito exceeds the producer's credit limit: the cashier has to confirm it.
+     */
+    public ?string $creditLimitWarning = null;
 
     /**
      * Bumped on every notification so the view can restart the auto-hide timer.
@@ -134,29 +140,38 @@ class PosDesk extends Component
         }
 
         $this->cart[$productId]['quantity'] = $quantity;
+        $this->creditLimitWarning = null;
     }
 
     public function removeItem(int $productId): void
     {
         unset($this->cart[$productId]);
+        $this->creditLimitWarning = null;
     }
 
     public function selectProducer(?int $producerId): void
     {
         $this->producerId = $producerId;
+        $this->creditLimitWarning = null;
         $this->dispatch('focus-scan');
+    }
+
+    public function updatedPaymentMethod(): void
+    {
+        $this->creditLimitWarning = null;
     }
 
     public function clearCart(): void
     {
-        $this->reset('cart', 'producerId', 'paymentMethod', 'received', 'search', 'alert');
+        $this->reset('cart', 'producerId', 'paymentMethod', 'received', 'search', 'alert', 'creditLimitWarning');
         $this->dispatch('focus-scan');
     }
 
     /**
-     * Confirm the sale through the checkout service and trigger the ticket print.
+     * Confirm the sale through the checkout service and trigger the ticket print. A remito above
+     * the credit limit first shows the warning and goes through only with $overLimit confirmed.
      */
-    public function confirm(CheckoutService $checkout): void
+    public function confirm(CheckoutService $checkout, bool $overLimit = false): void
     {
         if ($this->cart === []) {
             $this->notify('El ticket está vacío.');
@@ -201,7 +216,13 @@ class PosDesk extends Component
                 'producer_id' => $this->producerId,
                 'payment_method' => $this->paymentMethod,
                 'user_id' => auth()->id(),
+                'allow_over_limit' => $overLimit && $this->creditLimitWarning !== null,
             ]);
+        } catch (CreditLimitException $e) {
+            $this->creditLimitWarning = $e->getMessage();
+            unset($this->producers);
+
+            return;
         } catch (Exception $e) {
             $this->notify($e->getMessage());
 
@@ -210,7 +231,7 @@ class PosDesk extends Component
 
         $this->lastSaleId = $sale->id;
         $this->lastPaymentMethod = $this->paymentMethod;
-        $this->reset('cart', 'producerId', 'paymentMethod', 'received', 'search');
+        $this->reset('cart', 'producerId', 'paymentMethod', 'received', 'search', 'creditLimitWarning');
         unset($this->lastSale, $this->producers, $this->catalog, $this->nextVoucher);
 
         $this->notify("Venta {$sale->voucher_number} registrada.".($change ? ' Cambio: '.Pricing::money($change).'.' : ''), 'success');
@@ -250,7 +271,17 @@ class PosDesk extends Component
             ->active()
             ->where('name', '!=', Producer::WALK_IN)
             ->orderBy('name')
-            ->get(['id', 'name', 'business_name', 'cuit', 'balance']);
+            ->get(['id', 'name', 'business_name', 'cuit', 'balance', 'credit_limit']);
+    }
+
+    /**
+     * The remito being built would take the selected producer above their credit limit.
+     */
+    #[Computed]
+    public function exceedsCreditLimit(): bool
+    {
+        return $this->paymentMethod === 'cuenta_corriente'
+            && $this->selectedProducer?->exceedsCreditLimit($this->total) === true;
     }
 
     #[Computed]
@@ -335,6 +366,7 @@ class PosDesk extends Component
             'quantity' => $current + 1,
         ];
 
+        $this->creditLimitWarning = null;
         $this->dispatch('focus-scan');
 
         return true;

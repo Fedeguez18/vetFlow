@@ -28,22 +28,43 @@ class ProducerAccountsTest extends TestCase
     {
         $component = Livewire::test(AccountsReceivable::class)
             ->call('openCreateModal')
-            ->assertSet('showCreateModal', true)
+            ->assertSet('showProducerModal', true)
             ->set('form.name', '  Estancia La Josefina ')
             ->set('form.business_name', 'Roberto Méndez')
             ->set('form.cuit', '20284890294')
             ->set('form.phone', '358 412-3344')
             ->set('form.iva_condition', 'Responsable Inscripto')
             ->set('form.discount_percent', '5,5')
-            ->call('createProducer')
+            ->set('form.credit_limit', '1.500.000')
+            ->call('saveProducer')
             ->assertHasNoErrors()
-            ->assertSet('showCreateModal', false)
+            ->assertSet('showProducerModal', false)
             ->assertSet('alert', 'Cuenta de Estancia La Josefina creada.');
 
         $producer = Producer::sole();
 
-        $this->assertSame(['Estancia La Josefina', '20-28489029-4', '5.50', '0.00', true], [$producer->name, $producer->cuit, $producer->discount_percent, $producer->balance, $producer->is_active]);
+        $this->assertSame(['Estancia La Josefina', '20-28489029-4', '5.50', '0.00', '1500000.00', true], [$producer->name, $producer->cuit, $producer->discount_percent, $producer->balance, $producer->credit_limit, $producer->is_active]);
         $component->assertSet('producerId', $producer->id);
+    }
+
+    public function test_an_account_is_edited_and_the_credit_limit_can_be_removed(): void
+    {
+        $producer = Producer::create(['name' => 'Haras San Jorge', 'cuit' => '20-23456789-0', 'credit_limit' => 50000]);
+
+        Livewire::test(AccountsReceivable::class)
+            ->call('selectProducer', $producer->id)
+            ->call('openEditModal')
+            ->assertSet('form.name', 'Haras San Jorge')
+            ->assertSet('form.credit_limit', '50000')
+            ->set('form.phone', '3582 401-776')
+            ->set('form.credit_limit', '')
+            ->call('saveProducer')
+            ->assertHasNoErrors()
+            ->assertSet('alert', 'Datos de Haras San Jorge guardados.');
+
+        $producer->refresh();
+
+        $this->assertSame(['3582 401-776', null, '20-23456789-0'], [$producer->phone, $producer->credit_limit, $producer->cuit]);
     }
 
     public function test_creating_an_account_validates_the_data(): void
@@ -52,17 +73,18 @@ class ProducerAccountsTest extends TestCase
 
         Livewire::test(AccountsReceivable::class)
             ->call('openCreateModal')
-            ->call('createProducer')
+            ->call('saveProducer')
             ->assertHasErrors(['form.name' => 'required'])
             ->set('form.name', 'Estancia La Josefina')
             ->set('form.cuit', '20-28489029-4')
             ->set('form.discount_percent', '150')
-            ->call('createProducer')
-            ->assertHasErrors(['form.name' => 'unique', 'form.cuit' => 'unique', 'form.discount_percent' => 'max'])
+            ->set('form.credit_limit', '-10')
+            ->call('saveProducer')
+            ->assertHasErrors(['form.name' => 'unique', 'form.cuit' => 'unique', 'form.discount_percent' => 'max', 'form.credit_limit' => 'min'])
             ->set('form.cuit', '123')
-            ->call('createProducer')
+            ->call('saveProducer')
             ->assertHasErrors(['form.cuit' => 'regex'])
-            ->assertSet('showCreateModal', true);
+            ->assertSet('showProducerModal', true);
 
         $this->assertSame(1, Producer::count());
     }

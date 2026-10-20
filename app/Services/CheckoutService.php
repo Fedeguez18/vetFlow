@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Exceptions\CreditLimitException;
 use App\Models\Producer;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Support\Pricing;
 use Exception;
 use Illuminate\Support\Facades\DB;
 
@@ -15,11 +17,13 @@ class CheckoutService
     /**
      * Process a checkout: lock each product, validate stock, create the sale with its items,
      * discount stock (FEFO by lot) recording a "venta" movement and, for remitos, charge the
-     * total to the producer's balance.
+     * total to the producer's balance (any saldo a favor pays the remito right away). A remito
+     * above the producer's credit limit needs "allow_over_limit".
      *
      * @param  array<int, array{product_id: int, quantity: int}>  $cartItems
-     * @param  array{type: string, producer_id?: int|null, payment_method?: string|null, voucher_number?: string|null, user_id?: int|null}  $checkoutData
+     * @param  array{type: string, producer_id?: int|null, payment_method?: string|null, voucher_number?: string|null, user_id?: int|null, allow_over_limit?: bool}  $checkoutData
      *
+     * @throws CreditLimitException
      * @throws Exception
      */
     public function execute(array $cartItems, array $checkoutData): Sale
@@ -81,14 +85,25 @@ class CheckoutService
 
             $total = round($total, 2);
 
+            if ($producer && $producer->exceedsCreditLimit($total) && ! ($checkoutData['allow_over_limit'] ?? false)) {
+                throw new CreditLimitException('El remito de '.Pricing::moneyWithCents($total)." supera el límite de crédito de {$producer->name}: "
+                    .'límite '.Pricing::moneyWithCents($producer->credit_limit).', saldo actual '.Pricing::moneyWithCents($producer->balance).'.');
+            }
+
+            $paid = $type === 'contado' ? $total : $this->creditToApply($producer, $total);
+
             $sale = Sale::create([
                 'voucher_number' => $checkoutData['voucher_number'] ?? $this->reserveVoucherNumber($type),
                 'type' => $type,
                 'payment_method' => $type === 'remito' ? 'cuenta_corriente' : ($checkoutData['payment_method'] ?? null),
                 'producer_id' => $producerId,
                 'total' => $total,
-                'paid' => $type === 'contado' ? $total : 0,
-                'status' => $type === 'contado' ? 'pagada' : 'pendiente',
+                'paid' => $paid,
+                'status' => match (true) {
+                    $paid >= $total => 'pagada',
+                    $paid > 0 => 'parcial',
+                    default => 'pendiente',
+                },
             ]);
 
             $sale->saleItems()->createMany($items);
@@ -101,6 +116,16 @@ class CheckoutService
 
             return $sale->load('saleItems');
         });
+    }
+
+    /**
+     * Saldo a favor of the producer that covers the new remito (paid in advance).
+     */
+    protected function creditToApply(Producer $producer, float $total): float
+    {
+        $creditCents = max(0, -(int) round((float) $producer->balance * 100));
+
+        return min((int) round($total * 100), $creditCents) / 100;
     }
 
     /**
