@@ -67,7 +67,7 @@
                                 <div class="grid gap-4 sm:grid-cols-2">
                                     <div>
                                         <label for="pf-barcode" class="{{ $label }}">Código de barras</label>
-                                        <input id="pf-barcode" type="text" wire:model.blur="form.barcode" x-init="$nextTick(() => $el.focus())" x-on:keydown.enter.prevent="document.getElementById('pf-sku').focus()" autocomplete="off" placeholder="Escaneá o tipeá el código" class="{{ $input }} font-mono">
+                                        <input id="pf-barcode" type="text" wire:model.live.blur="form.barcode" x-init="$nextTick(() => $el.focus())" x-on:keydown.enter.prevent="document.getElementById('pf-sku').focus()" autocomplete="off" placeholder="Escaneá o tipeá el código" class="{{ $input }} font-mono">
                                         @error('form.barcode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
