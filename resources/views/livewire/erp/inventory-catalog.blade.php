@@ -1,3 +1,4 @@
+@use('App\Livewire\Erp\InventoryCatalog')
 @use('App\Models\Product')
 @use('App\Support\Pricing')
 
@@ -143,6 +144,9 @@
                         <th class="px-5 py-3">Código / SKU</th>
                         <th class="px-5 py-3">Artículo / Droga</th>
                         <th class="px-5 py-3">Rubro</th>
+                        @foreach (InventoryCatalog::INLINE_PERCENTS as $percentLabel)
+                            <th class="whitespace-nowrap px-3 py-3 text-right">{{ $percentLabel }}</th>
+                        @endforeach
                         <th class="px-5 py-3 text-right">Precio venta</th>
                         <th class="px-5 py-3 text-center">Existencias</th>
                         <th class="px-5 py-3">Vencimiento lote</th>
@@ -177,13 +181,30 @@
                                     <span class="text-slate-400">—</span>
                                 @endif
                             </td>
+                            @foreach (InventoryCatalog::INLINE_PERCENTS as $field => $percentLabel)
+                                <td class="whitespace-nowrap px-3 py-4 text-right">
+                                    {{-- The key includes the stored value so the input is replaced when the server changes it. --}}
+                                    <div wire:key="percent-{{ $product->id }}-{{ $field }}-{{ $product->{$field} }}" class="relative ml-auto w-20">
+                                        <input
+                                            type="text"
+                                            inputmode="decimal"
+                                            autocomplete="off"
+                                            value="{{ Pricing::percent($product->{$field}) }}"
+                                            title="Editar {{ $percentLabel }} (recalcula el precio final)"
+                                            x-on:keydown.enter.prevent="$el.blur()"
+                                            x-on:keydown.escape="$el.value = $el.defaultValue; $el.blur()"
+                                            x-on:change="$wire.updatePercent({{ $product->id }}, '{{ $field }}', $el.value).then(value => $el.value = value ?? $el.defaultValue)"
+                                            class="w-full rounded-lg border border-transparent bg-transparent py-1 pl-2 pr-6 text-right font-mono text-sm tabular-nums text-slate-700 hover:border-slate-200 hover:bg-white focus:border-[#0F2A26] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10"
+                                        >
+                                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+                                    </div>
+                                </td>
+                            @endforeach
                             <td class="whitespace-nowrap px-5 py-4 text-right">
                                 <span class="group relative inline-block cursor-help font-mono text-base font-bold text-slate-900">
                                     {{ $money($product->price) }}
                                     <span class="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden w-52 rounded-lg bg-slate-900 p-3 text-left font-sans text-xs font-normal text-slate-200 shadow-lg group-hover:block">
                                         <span class="flex justify-between"><span>Costo</span><span class="tabular-nums">{{ $money($product->cost_price) }}</span></span>
-                                        <span class="flex justify-between"><span>Remarque</span><span class="tabular-nums">{{ Pricing::percent($product->markup_percent) }}%</span></span>
-                                        <span class="flex justify-between"><span>IVA</span><span class="tabular-nums">{{ Pricing::percent($product->vat_percent) }}%</span></span>
                                     </span>
                                 </span>
                             </td>
@@ -215,7 +236,6 @@
                                         wire:click="$dispatch('product-restock', { productId: {{ $product->id }} })"
                                         class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
                                     >
-                                        <span class="flex size-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] text-white">+</span>
                                         Reponer
                                     </button>
                                     <button
@@ -230,7 +250,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-5 py-16 text-center text-slate-500">
+                            <td colspan="{{ 8 + count(InventoryCatalog::INLINE_PERCENTS) }}" class="px-5 py-16 text-center text-slate-500">
                                 {{ trim($search) !== '' || $categoryId ? 'No hay artículos que coincidan con el filtro.' : 'Todavía no hay artículos cargados.' }}
                             </td>
                         </tr>

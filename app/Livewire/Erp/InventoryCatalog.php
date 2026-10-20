@@ -6,6 +6,8 @@ use App\Models\Category;
 use App\Models\Lot;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Services\ProductService;
+use App\Support\Pricing;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -24,6 +26,14 @@ class InventoryCatalog extends Component
     use WithPagination;
 
     public const PER_PAGE = 10;
+
+    /**
+     * Price percentages editable inline from the table.
+     */
+    public const INLINE_PERCENTS = [
+        'markup_percent' => '% Remarque',
+        'vat_percent' => '% IVA',
+    ];
 
     #[Url(as: 'q', except: '')]
     public string $search = '';
@@ -83,6 +93,51 @@ class InventoryCatalog extends Component
                 ->whereBetween('created_at', [today(), today()->endOfDay()])
                 ->sum('total'), 2),
         ];
+    }
+
+    /**
+     * Inline edit of the markup or VAT % from the table: keeps the cost, recalculates the final price
+     * and records the price history. Returns the value to show in the input, or null when rejected.
+     */
+    public function updatePercent(int $productId, string $field, string $value, ProductService $products): ?string
+    {
+        if (! array_key_exists($field, self::INLINE_PERCENTS)) {
+            return null;
+        }
+
+        $product = Product::findOrFail($productId);
+        $percent = Pricing::parse($value);
+
+        if ($percent === null || $percent < ($field === 'markup_percent' ? -100 : 0)) {
+            $this->dispatch('toast', message: $field === 'markup_percent'
+                ? 'El remarque tiene que ser un número mayor o igual a -100.'
+                : 'El IVA tiene que ser un número mayor o igual a cero.', type: 'error');
+
+            return null;
+        }
+
+        $percent = round($percent, 2);
+
+        if ($percent === round((float) $product->{$field}, 2)) {
+            return Pricing::percent($percent);
+        }
+
+        $markup = $field === 'markup_percent' ? $percent : (float) $product->markup_percent;
+        $vat = $field === 'vat_percent' ? $percent : (float) $product->vat_percent;
+        $price = Pricing::finalPrice((float) $product->cost_price, $markup, $vat);
+
+        if ($price <= 0) {
+            $this->dispatch('toast', message: 'El precio final tiene que ser mayor a cero.', type: 'error');
+
+            return null;
+        }
+
+        $products->update($product, ['markup_percent' => $markup, 'vat_percent' => $vat, 'price' => $price], auth()->id());
+
+        unset($this->products);
+        $this->dispatch('toast', message: 'Se actualizó '.$product->name.': precio final '.Pricing::money($price).'.');
+
+        return Pricing::percent($percent);
     }
 
     #[Computed]
