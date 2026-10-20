@@ -227,9 +227,9 @@ class Product extends Model
 
         $query
             ->when($term !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
-                ->where('name', 'like', "%{$term}%")
-                ->orWhere('barcode', 'like', "{$term}%")
-                ->orWhere('sku', 'like', "{$term}%")))
+                ->whereLike('name', "%{$term}%")
+                ->orWhereLike('barcode', "{$term}%")
+                ->orWhereLike('sku', "{$term}%")))
             ->when($categoryId, fn (Builder $query) => $query->where('category_id', $categoryId));
 
         match ($sort) {
@@ -242,8 +242,8 @@ class Product extends Model
                     ->where('quantity', '>', 0)
                     ->orderBy('expiration_date')
                     ->limit(1)])
-                ->orderByRaw('next_expiration is null')
-                ->orderBy('next_expiration')
+                // Not "next_expiration is null": PostgreSQL rejects an alias inside an ORDER BY expression.
+                ->orderByRaw('next_expiration asc nulls last')
                 ->orderBy('name'),
             default => $query->orderBy('name'),
         };

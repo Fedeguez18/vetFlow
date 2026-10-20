@@ -383,9 +383,9 @@ class PosDesk extends Component
         return Product::query()
             ->where('is_active', true)
             ->when($term !== '', fn ($query) => $query->where(fn ($query) => $query
-                ->where('name', 'like', "%{$term}%")
-                ->orWhere('barcode', 'like', "{$term}%")
-                ->orWhere('sku', 'like', "{$term}%")));
+                ->whereLike('name', "%{$term}%")
+                ->orWhereLike('barcode', "{$term}%")
+                ->orWhereLike('sku', "{$term}%")));
     }
 
     protected function notify(string $message, string $type = 'error'): void

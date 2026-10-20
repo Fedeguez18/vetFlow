@@ -91,9 +91,9 @@ class Producer extends Model
         $term = trim($term);
 
         $query->when($term !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
-            ->where('name', 'like', "%{$term}%")
-            ->orWhere('business_name', 'like', "%{$term}%")
-            ->orWhere('cuit', 'like', "%{$term}%")));
+            ->whereLike('name', "%{$term}%")
+            ->orWhereLike('business_name', "%{$term}%")
+            ->orWhereLike('cuit', "%{$term}%")));
     }
 
     /**
