@@ -62,21 +62,103 @@ class ProductCreationTest extends TestCase
         $this->assertSame($supplier->id, $movement->supplier_id);
     }
 
-    public function test_barcode_and_sku_must_be_unique(): void
+    public function test_the_sku_must_be_unique(): void
     {
         Product::factory()->create(['barcode' => '7790001112223', 'sku' => 'IVM-1']);
 
         Livewire::test(ProductEditor::class)
             ->call('create')
-            ->set('form.barcode', '7790001112223')
+            ->set('form.barcode', '7790009998887')
             ->set('form.sku', 'ivm-1')
             ->set('form.name', 'Duplicado')
             ->set('form.cost_price', '100')
             ->set('form.markup_percent', '10')
             ->call('save')
-            ->assertHasErrors(['form.barcode' => 'unique', 'form.sku' => 'unique']);
+            ->assertHasErrors(['form.sku' => 'unique']);
 
         $this->assertSame(1, Product::count());
+    }
+
+    public function test_editing_cannot_take_the_barcode_of_another_product(): void
+    {
+        Product::factory()->create(['barcode' => '7790001112223']);
+        $other = Product::factory()->create(['barcode' => '7790009998887']);
+
+        Livewire::test(ProductEditor::class)
+            ->call('edit', $other->id)
+            ->set('form.barcode', '7790001112223')
+            ->call('save')
+            ->assertHasErrors(['form.barcode' => 'unique']);
+
+        $this->assertSame('7790009998887', $other->fresh()->barcode);
+    }
+
+    public function test_scanning_a_loaded_barcode_opens_that_product(): void
+    {
+        $product = Product::factory()->create(['barcode' => '7790001112223', 'name' => 'Ivermectina 1%']);
+
+        Livewire::test(ProductEditor::class)
+            ->call('create')
+            ->set('form.name', 'Lo que se haya tipeado')
+            ->set('form.barcode', ' 7790001112223 ')
+            ->assertSet('form.product.id', $product->id)
+            ->assertSet('form.name', 'Ivermectina 1%')
+            ->assertSet('tab', 'datos')
+            ->assertSee('ya estaba cargado: se abrió Ivermectina 1% para editarlo');
+
+        $this->assertSame(1, Product::count());
+    }
+
+    public function test_scanning_the_barcode_of_an_inactive_product_opens_it_and_explains_how_to_reactivate_it(): void
+    {
+        $product = Product::factory()->create(['barcode' => '7790001112223', 'name' => 'Ivermectina 1%', 'is_active' => false]);
+
+        Livewire::test(ProductEditor::class)
+            ->call('create')
+            ->set('form.barcode', '7790001112223')
+            ->assertSet('form.product.id', $product->id)
+            ->assertSet('form.is_active', false)
+            ->assertSee('que está dado de baja');
+    }
+
+    public function test_an_unknown_barcode_fills_nothing(): void
+    {
+        Product::factory()->create(['barcode' => '7790001112223']);
+
+        Livewire::test(ProductEditor::class)
+            ->call('create')
+            ->set('form.name', 'Producto nuevo')
+            ->set('form.barcode', '7790009998887')
+            ->assertSet('form.product', null)
+            ->assertSet('form.name', 'Producto nuevo')
+            ->assertSet('form.sku', '')
+            ->assertSet('notice', null);
+    }
+
+    public function test_changing_the_barcode_while_editing_does_not_open_another_product(): void
+    {
+        Product::factory()->create(['barcode' => '7790001112223']);
+        $other = Product::factory()->create(['barcode' => '7790009998887']);
+
+        Livewire::test(ProductEditor::class)
+            ->call('edit', $other->id)
+            ->set('form.barcode', '7790001112223')
+            ->assertSet('form.product.id', $other->id)
+            ->assertSet('notice', null);
+    }
+
+    public function test_the_notice_is_cleared_when_the_editor_is_reopened(): void
+    {
+        Product::factory()->create(['barcode' => '7790001112223']);
+
+        Livewire::test(ProductEditor::class)
+            ->call('create')
+            ->set('form.barcode', '7790001112223')
+            ->assertNotSet('notice', null)
+            ->call('close')
+            ->call('create')
+            ->assertSet('notice', null)
+            ->assertSet('form.product', null);
     }
 
     public function test_the_barcode_is_optional(): void

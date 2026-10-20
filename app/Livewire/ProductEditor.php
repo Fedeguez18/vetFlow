@@ -46,6 +46,11 @@ class ProductEditor extends Component
 
     public string $adjustNote = '';
 
+    /**
+     * Shown when a scanned barcode already belonged to a product and that product was opened instead.
+     */
+    public ?string $notice = null;
+
     #[On('product-create')]
     public function create(): void
     {
@@ -53,6 +58,7 @@ class ProductEditor extends Component
         $this->form->product = null;
         $this->resetAdjustment();
         $this->resetValidation();
+        $this->notice = null;
         $this->tab = 'datos';
         $this->open = true;
     }
@@ -64,6 +70,7 @@ class ProductEditor extends Component
         $this->form->setProduct(Product::findOrFail($productId));
         $this->resetAdjustment();
         $this->resetValidation();
+        $this->notice = null;
         $this->tab = 'datos';
         $this->open = true;
     }
@@ -71,6 +78,7 @@ class ProductEditor extends Component
     public function close(): void
     {
         $this->open = false;
+        $this->notice = null;
         $this->resetValidation();
     }
 
@@ -88,6 +96,34 @@ class ProductEditor extends Component
         if ($property === 'form.tracks_expiry' && $this->form->tracks_expiry && $this->form->lots === []) {
             $this->form->addLot();
         }
+
+        if ($property === 'form.barcode' && ! $this->form->isEditing()) {
+            $this->openExistingBarcode();
+        }
+    }
+
+    /**
+     * When creating, a barcode that is already loaded opens that product (even if it was given a baja)
+     * instead of letting the whole form be filled to fail on save. An unknown barcode changes nothing.
+     */
+    protected function openExistingBarcode(): void
+    {
+        $barcode = trim($this->form->barcode);
+
+        if ($barcode === '') {
+            return;
+        }
+
+        $product = Product::query()->where('barcode', $barcode)->first();
+
+        if (! $product) {
+            return;
+        }
+
+        $this->edit($product->id);
+        $this->notice = $product->is_active
+            ? "El código {$barcode} ya estaba cargado: se abrió {$product->name} para editarlo."
+            : "El código {$barcode} ya estaba cargado en {$product->name}, que está dado de baja. Marcá \"Artículo activo\" y guardá para volver a venderlo.";
     }
 
     public function addLot(): void

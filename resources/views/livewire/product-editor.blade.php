@@ -54,6 +54,10 @@
                     </nav>
                 @endif
 
+                @if ($notice)
+                    <div class="mx-6 mt-5 rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">{{ $notice }}</div>
+                @endif
+
                 <div class="px-6 py-5">
                     {{-- DATOS --}}
                     @if ($tab === 'datos')
@@ -63,7 +67,7 @@
                                 <div class="grid gap-4 sm:grid-cols-2">
                                     <div>
                                         <label for="pf-barcode" class="{{ $label }}">Código de barras</label>
-                                        <input id="pf-barcode" type="text" wire:model="form.barcode" x-init="$nextTick(() => $el.focus())" x-on:keydown.enter.prevent="document.getElementById('pf-sku').focus()" autocomplete="off" placeholder="Escaneá o tipeá el código" class="{{ $input }} font-mono">
+                                        <input id="pf-barcode" type="text" wire:model.blur="form.barcode" x-init="$nextTick(() => $el.focus())" x-on:keydown.enter.prevent="document.getElementById('pf-sku').focus()" autocomplete="off" placeholder="Escaneá o tipeá el código" class="{{ $input }} font-mono">
                                         @error('form.barcode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
