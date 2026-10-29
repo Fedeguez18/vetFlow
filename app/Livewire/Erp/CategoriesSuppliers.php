@@ -3,6 +3,7 @@
 namespace App\Livewire\Erp;
 
 use App\Exceptions\CatalogException;
+use App\Livewire\Concerns\RequiresAdmin;
 use App\Models\Category;
 use App\Models\Supplier;
 use App\Services\CategoryService;
@@ -20,6 +21,8 @@ use Livewire\Component;
 #[Title('Rubros & Proveedores')]
 class CategoriesSuppliers extends Component
 {
+    use RequiresAdmin;
+
     #[Locked]
     public ?int $categoryId = null;
 

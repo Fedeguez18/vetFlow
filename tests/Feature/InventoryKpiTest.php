@@ -19,7 +19,7 @@ class InventoryKpiTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
     }
 
     public function test_each_kpi_is_calculated_from_the_database(): void

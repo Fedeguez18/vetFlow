@@ -18,13 +18,12 @@ class ProfileTest extends TestCase
         $this->get('/perfil')->assertRedirect('/login');
     }
 
-    public function test_the_profile_is_linked_from_both_terminals(): void
+    public function test_the_profile_is_linked_from_the_erp(): void
     {
         $this->withoutVite();
-        $this->actingAs(User::factory()->create(['name' => 'Diego']));
+        $this->actingAs(User::factory()->admin()->create(['name' => 'Diego']));
 
         $this->get('/perfil')->assertOk()->assertSee('Mi perfil')->assertSee('Diego');
-        $this->get('/pos')->assertOk()->assertSee(route('profile'));
         $this->get('/erp/inventario')->assertOk()->assertSee(route('profile'));
     }
 

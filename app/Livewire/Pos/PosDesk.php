@@ -2,17 +2,22 @@
 
 namespace App\Livewire\Pos;
 
+use App\Exceptions\CashSessionException;
 use App\Exceptions\CreditLimitException;
+use App\Models\CashSession;
 use App\Models\Category;
 use App\Models\Producer;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Services\CashSessionService;
 use App\Services\CheckoutService;
+use App\Services\PosTerminalService;
 use App\Support\Pricing;
 use Exception;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -66,6 +71,68 @@ class PosDesk extends Component
      * Bumped on every notification so the view can restart the auto-hide timer.
      */
     public int $alertId = 0;
+
+    public bool $showCloseModal = false;
+
+    /**
+     * Cash counted by the user when closing the caja (they don't see what is expected).
+     */
+    public string $declaredCash = '';
+
+    /**
+     * Without an open caja the terminal stays locked asking for a code.
+     */
+    public function mount()
+    {
+        if (! $this->cashSession) {
+            return $this->redirectRoute('pos.lock');
+        }
+    }
+
+    #[On('close-cash-register')]
+    public function openCloseModal(): void
+    {
+        $this->reset('declaredCash');
+        $this->resetValidation();
+        $this->showCloseModal = true;
+    }
+
+    public function closeCloseModal(): void
+    {
+        $this->showCloseModal = false;
+    }
+
+    /**
+     * Close the caja with the counted cash: it goes to administración and the terminal locks.
+     */
+    public function closeCashRegister(CashSessionService $cashSessions)
+    {
+        $cashSession = $this->cashSession;
+
+        if (! $cashSession) {
+            return $this->redirectRoute('pos.lock');
+        }
+
+        $amount = Pricing::parse($this->declaredCash);
+
+        if ($amount === null) {
+            $this->addError('declaredCash', 'Ingresá el efectivo que contaste (0 si no hay).');
+
+            return null;
+        }
+
+        try {
+            $cashSessions->close($cashSession, $amount);
+        } catch (CashSessionException $e) {
+            $this->addError('declaredCash', $e->getMessage());
+
+            return null;
+        }
+
+        session()->flash('status', "Caja de {$cashSession->user->name} cerrada y enviada a administración.");
+
+        return $this->redirectRoute('pos.lock');
+    }
 
     /**
      * Handle the Enter key from the search input or the USB barcode scanner.
@@ -173,6 +240,14 @@ class PosDesk extends Component
      */
     public function confirm(CheckoutService $checkout, bool $overLimit = false): void
     {
+        $cashSession = $this->cashSession;
+
+        if (! $cashSession) {
+            $this->redirectRoute('pos.lock');
+
+            return;
+        }
+
         if ($this->cart === []) {
             $this->notify('El ticket está vacío.');
 
@@ -215,7 +290,8 @@ class PosDesk extends Component
                 'type' => $onAccount ? 'remito' : 'contado',
                 'producer_id' => $this->producerId,
                 'payment_method' => $this->paymentMethod,
-                'user_id' => auth()->id(),
+                'user_id' => $cashSession->user_id,
+                'cash_session_id' => $cashSession->id,
                 'allow_over_limit' => $overLimit && $this->creditLimitWarning !== null,
             ]);
         } catch (CreditLimitException $e) {
@@ -325,6 +401,15 @@ class PosDesk extends Component
         $received = $this->receivedAmount;
 
         return $received !== null && $received >= $this->total ? round($received - $this->total, 2) : null;
+    }
+
+    /**
+     * The caja open on this terminal: its user is the one selling.
+     */
+    #[Computed]
+    public function cashSession(): ?CashSession
+    {
+        return app(PosTerminalService::class)->current()?->openCashSession?->load('user');
     }
 
     #[Computed]

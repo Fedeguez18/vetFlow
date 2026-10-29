@@ -29,13 +29,13 @@ class CashAuditService
     /**
      * Every sale and account payment of the day, in chronological order.
      *
-     * @return Collection<int, array{key: string, time: CarbonImmutable, kind: string, voucher: string, client: string, method: ?string, amount: float, collected: float}>
+     * @return Collection<int, array{key: string, time: CarbonImmutable, kind: string, voucher: string, client: string, method: ?string, amount: float, collected: float, user: ?string, user_role: ?string}>
      */
     public function entries(CarbonImmutable $day): Collection
     {
         $range = [$day->startOfDay(), $day->endOfDay()];
 
-        $sales = Sale::query()->with('producer')->whereBetween('created_at', $range)->get()
+        $sales = Sale::query()->with(['producer', 'user'])->whereBetween('created_at', $range)->get()
             ->map(fn (Sale $sale) => [
                 'key' => "sale-{$sale->id}",
                 'time' => $sale->created_at->toImmutable(),
@@ -45,9 +45,11 @@ class CashAuditService
                 'method' => $sale->type === 'remito' ? 'cuenta_corriente' : $sale->payment_method,
                 'amount' => (float) $sale->total,
                 'collected' => $sale->type === 'remito' ? 0.0 : (float) $sale->total,
+                'user' => $sale->user?->name,
+                'user_role' => $sale->user?->role,
             ]);
 
-        $payments = Payment::query()->with('producer')->whereBetween('created_at', $range)->get()
+        $payments = Payment::query()->with(['producer', 'user'])->whereBetween('created_at', $range)->get()
             ->map(fn (Payment $payment) => [
                 'key' => "payment-{$payment->id}",
                 'time' => $payment->created_at->toImmutable(),
@@ -57,6 +59,8 @@ class CashAuditService
                 'method' => $payment->payment_method,
                 'amount' => (float) $payment->amount,
                 'collected' => (float) $payment->amount,
+                'user' => $payment->user?->name,
+                'user_role' => $payment->user?->role,
             ]);
 
         return $sales->concat($payments)->sortBy([['time', 'asc'], ['key', 'asc']])->values();

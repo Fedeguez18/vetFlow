@@ -18,19 +18,20 @@ class EnsureAdminCommandTest extends TestCase
 
         $user = User::where('email', 'vet@example.com')->sole();
         $this->assertSame('Diego', $user->name);
-        $this->assertSame('Médico Veterinario', $user->fresh()->role);
+        $this->assertTrue($user->fresh()->isAdmin());
         $this->assertTrue(Hash::check('secreto123', $user->password));
     }
 
     public function test_it_updates_the_password_of_an_existing_admin(): void
     {
-        User::factory()->create(['email' => 'vet@example.com', 'password' => 'vieja1234']);
+        User::factory()->inactive()->create(['email' => 'vet@example.com', 'password' => 'vieja1234']);
 
         $this->artisan('app:ensure-admin', ['--email' => 'vet@example.com', '--password' => 'nueva1234'])
             ->assertSuccessful();
 
         $this->assertSame(1, User::count());
         $this->assertTrue(Hash::check('nueva1234', User::sole()->password));
+        $this->assertTrue(User::sole()->isAdmin());
     }
 
     public function test_it_skips_without_failing_when_credentials_are_missing(): void

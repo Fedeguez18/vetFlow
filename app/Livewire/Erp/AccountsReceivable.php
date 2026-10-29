@@ -3,6 +3,7 @@
 namespace App\Livewire\Erp;
 
 use App\Exceptions\PaymentException;
+use App\Livewire\Concerns\RequiresAdmin;
 use App\Livewire\Forms\ProducerForm;
 use App\Models\Payment;
 use App\Models\Producer;
@@ -27,6 +28,8 @@ use Throwable;
 #[Title('Cuentas Corrientes')]
 class AccountsReceivable extends Component
 {
+    use RequiresAdmin;
+
     public string $search = '';
 
     #[Url(as: 'productor', except: null)]
@@ -237,7 +240,7 @@ class AccountsReceivable extends Component
         ]);
 
         try {
-            $payment = $payments->register($this->producerId, (float) $this->paymentAmount, $this->paymentMethod, $this->paymentNotes);
+            $payment = $payments->register($this->producerId, (float) $this->paymentAmount, $this->paymentMethod, $this->paymentNotes, auth()->id());
         } catch (PaymentException $e) {
             $this->addError('paymentAmount', $e->getMessage());
 

@@ -127,7 +127,7 @@ class AccountPdfTest extends TestCase
 
     public function test_the_pdfs_are_downloaded(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $this->get(route('erp.remitos.pdf', $this->remito))
             ->assertOk()
@@ -144,7 +144,7 @@ class AccountPdfTest extends TestCase
 
     public function test_only_remitos_have_a_remito_pdf(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $sale = Sale::create(['voucher_number' => 'C-00000001', 'type' => 'contado', 'payment_method' => 'efectivo', 'total' => 100, 'paid' => 100, 'status' => 'pagada']);
 

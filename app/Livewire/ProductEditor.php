@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Exceptions\StockException;
+use App\Livewire\Concerns\RequiresAdmin;
 use App\Livewire\Forms\ProductForm;
 use App\Models\Category;
 use App\Models\Product;
@@ -22,6 +23,8 @@ use Livewire\Component;
  */
 class ProductEditor extends Component
 {
+    use RequiresAdmin;
+
     public const TABS = [
         'datos' => 'Datos',
         'lotes' => 'Lotes',

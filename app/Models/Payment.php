@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['producer_id', 'amount', 'payment_method', 'notes'])]
+#[Fillable(['producer_id', 'amount', 'payment_method', 'notes', 'user_id'])]
 class Payment extends Model
 {
     /**
@@ -50,5 +50,15 @@ class Payment extends Model
     public function producer(): BelongsTo
     {
         return $this->belongsTo(Producer::class);
+    }
+
+    /**
+     * Get the user who registered the payment.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

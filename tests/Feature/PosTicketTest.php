@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Livewire\Pos\PosDesk;
 use App\Models\Producer;
 use App\Models\Product;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -16,7 +15,7 @@ class PosTicketTest extends TestCase
 
     public function test_the_printable_ticket_shows_the_last_remito(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->openCashRegister();
         $product = Product::factory()->create(['name' => 'Ivermectina 1% x 50 ml', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 10, 'price' => 1500]);
         $producer = Producer::create(['name' => 'Estancia La Josefina', 'cuit' => '30-71234567-1']);
 
@@ -48,7 +47,7 @@ class PosTicketTest extends TestCase
 
     public function test_the_customer_picker_lists_producers_with_their_debt(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->openCashRegister();
         Producer::create(['name' => 'Estancia La Josefina', 'business_name' => 'La Josefina S.A.', 'balance' => 12500]);
 
         Livewire::test(PosDesk::class)

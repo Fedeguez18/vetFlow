@@ -15,20 +15,22 @@
 </head>
 <body class="min-h-full bg-[#F4F6F5] font-sans text-slate-800 antialiased">
     @php
-        $tabs = [
+        $user = auth()->user();
+        // Sellers only reach this layout through their profile: no ERP tabs for them.
+        $tabs = $user?->can('admin') ? [
             ['label' => 'Inventario & Lotes', 'route' => 'erp.inventory'],
             ['label' => 'Cuentas Corrientes & Remitos', 'route' => 'erp.accounts'],
             ['label' => 'Auditoría & Caja', 'route' => 'erp.audit'],
             ['label' => 'Rubros & Proveedores', 'route' => 'erp.catalogs'],
-        ];
-        $user = auth()->user();
+            ['label' => 'Usuarios', 'route' => 'erp.users'],
+        ] : [];
     @endphp
 
     {{-- Terminal Gestión (PC 2): inventario, cuentas corrientes y auditoría. --}}
     <header class="sticky top-0 z-40 border-b border-slate-200 bg-white">
         <div class="flex min-h-16 w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-6">
             <div class="flex items-center gap-3">
-                <a href="{{ route('erp.inventory') }}" class="flex items-center gap-2">
+                <a href="{{ $tabs ? route('erp.inventory') : route('pos.desk') }}" class="flex items-center gap-2">
                     <x-logo-mark class="size-8" />
                     <span class="text-lg font-bold tracking-tight text-slate-900">vete<span class="text-emerald-600">Flow</span></span>
                 </a>
@@ -39,6 +41,7 @@
                 </span>
             </div>
 
+            @if ($tabs)
             <nav class="order-last flex w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 xl:order-none xl:w-auto">
                 @foreach ($tabs as $tab)
                     @php($active = request()->routeIs($tab['route'], $tab['route'].'.*'))
@@ -55,6 +58,7 @@
                     </a>
                 @endforeach
             </nav>
+            @endif
 
             <div class="flex items-center gap-4">
                 <a

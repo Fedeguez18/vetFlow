@@ -10,7 +10,7 @@ class AdminAccountService
     public const MIN_PASSWORD_LENGTH = 8;
 
     /**
-     * Create the admin user, or reset its name and password when the email already exists.
+     * Create the admin user, or reset its name, password and role (and reactivate it) when the email already exists.
      *
      * @throws InvalidArgumentException when the password is too short.
      */
@@ -22,7 +22,7 @@ class AdminAccountService
 
         return User::updateOrCreate(
             ['email' => trim($email)],
-            ['name' => $name ?: 'Administrador', 'password' => $password],
+            ['name' => $name ?: 'Administrador', 'password' => $password, 'role' => User::ROLE_ADMIN, 'is_active' => true],
         );
     }
 }

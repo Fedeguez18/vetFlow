@@ -24,7 +24,7 @@ class CreditEdgeCasesTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
         $this->producer = Producer::create(['name' => 'Estancia La Josefina']);
         $this->product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 100, 'price' => 200]);
     }

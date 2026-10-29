@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Exceptions\StockException;
+use App\Livewire\Concerns\RequiresAdmin;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\StockService;
@@ -17,6 +18,8 @@ use Livewire\Component;
  */
 class RestockModal extends Component
 {
+    use RequiresAdmin;
+
     public ?int $productId = null;
 
     public bool $open = false;

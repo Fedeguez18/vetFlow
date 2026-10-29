@@ -208,7 +208,7 @@
                             Reimprimir {{ $this->lastSale->voucher_number }}
                         </button>
                         @if ($this->lastSale->type === 'remito')
-                            <a href="{{ route('erp.remitos.pdf', $this->lastSale) }}" target="_blank" rel="noopener" class="ml-2 mt-0.5 text-xs font-medium text-teal-700 hover:text-teal-900">Remito A4 (PDF)</a>
+                            <a href="{{ route('pos.remito-pdf', $this->lastSale) }}" target="_blank" rel="noopener" class="ml-2 mt-0.5 text-xs font-medium text-teal-700 hover:text-teal-900">Remito A4 (PDF)</a>
                         @endif
                     @endif
                 </div>
@@ -392,6 +392,29 @@
             </div>
         </div>
     </aside>
+
+    {{-- Cerrar caja: the user declares the counted cash without seeing the expected amount. --}}
+    @if ($showCloseModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" wire:click.self="closeCloseModal">
+            <form wire:submit="closeCashRegister" role="dialog" aria-modal="true" aria-labelledby="close-register-title" class="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+                <div>
+                    <h2 id="close-register-title" class="text-lg font-semibold text-slate-900">Cerrar caja</h2>
+                    <p class="text-sm text-slate-500">Contá el efectivo de la caja, incluido el fondo inicial, y cargalo. El cierre va a administración y la terminal queda bloqueada.</p>
+                </div>
+
+                <div>
+                    <x-form.label for="declaredCash">Efectivo contado</x-form.label>
+                    <x-form.input id="declaredCash" type="text" inputmode="decimal" wire:model="declaredCash" autofocus autocomplete="off" class="text-lg font-semibold tabular-nums" />
+                    <x-form.error name="declaredCash" />
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="button" wire:click="closeCloseModal" class="flex-1 rounded-[10px] px-4 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-300 hover:bg-slate-50">Cancelar</button>
+                    <button type="submit" wire:loading.attr="disabled" wire:target="closeCashRegister" class="flex-1 rounded-[10px] bg-[#0F2A26] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1A3D37] disabled:opacity-50">Cerrar caja</button>
+                </div>
+            </form>
+        </div>
+    @endif
 
     {{-- Printable ticket (copied into a hidden iframe on print) --}}
     <div x-ref="ticket" class="hidden">

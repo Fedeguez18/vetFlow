@@ -27,7 +27,7 @@ class AccountPaymentsTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
         $this->producer = Producer::create(['name' => 'Estancia La Josefina', 'phone' => '(0358) 15-464-2210', 'balance' => 3000]);
         $this->older = $this->remito('R-00000001', 1000, now()->subDays(5));
         $this->newer = $this->remito('R-00000002', 2000, now()->subDay());
@@ -92,6 +92,60 @@ class AccountPaymentsTest extends TestCase
 
         $this->assertSame('3000.00', $this->producer->fresh()->balance);
         $this->assertSame(0, $this->producer->payments()->count());
+    }
+
+    public function test_a_payment_with_an_unknown_method_is_rejected_without_changes(): void
+    {
+        try {
+            app(PaymentService::class)->register($this->producer->id, 1000, 'bitcoin');
+            $this->fail('El medio de pago desconocido tendría que fallar.');
+        } catch (PaymentException $e) {
+            $this->assertSame('Elegí un medio de pago válido.', $e->getMessage());
+        }
+
+        $this->assertSame('3000.00', $this->producer->fresh()->balance);
+        $this->assertSame(0, $this->producer->payments()->count());
+    }
+
+    public function test_an_inactive_account_rejects_payments_and_credit_notes_without_changes(): void
+    {
+        $this->producer->update(['is_active' => false]);
+
+        foreach ([
+            fn () => app(PaymentService::class)->register($this->producer->id, 1000, 'efectivo'),
+            fn () => app(PaymentService::class)->registerCreditNote($this->producer->id, 1000, 'Bonificación'),
+        ] as $movement) {
+            try {
+                $movement();
+                $this->fail('La cuenta dada de baja tendría que rechazar el movimiento.');
+            } catch (PaymentException $e) {
+                $this->assertSame('La cuenta de Estancia La Josefina está dada de baja. Reactivala para registrar movimientos.', $e->getMessage());
+            }
+        }
+
+        $this->assertSame('3000.00', $this->producer->fresh()->balance);
+        $this->assertSame(0, $this->producer->payments()->count());
+        $this->assertSame(0, $this->producer->creditNotes()->count());
+        $this->assertSame(0, Sale::where('status', 'pendiente')->where('paid', '>', 0)->count());
+    }
+
+    public function test_the_screen_rejects_a_payment_to_an_inactive_account_skipping_the_modal(): void
+    {
+        $component = Livewire::test(AccountsReceivable::class)
+            ->set('showInactive', true)
+            ->call('selectProducer', $this->producer->id);
+
+        $this->producer->update(['is_active' => false]);
+
+        $component->set('paymentAmount', '1000')
+            ->call('registerPayment')
+            ->assertHasErrors('paymentAmount')
+            ->set('creditNoteAmount', '1000')
+            ->set('creditNoteReason', 'Bonificación')
+            ->call('registerCreditNote')
+            ->assertHasErrors('creditNoteAmount');
+
+        $this->assertSame('3000.00', $this->producer->fresh()->balance);
     }
 
     public function test_the_screen_registers_a_payment_typed_in_local_format(): void

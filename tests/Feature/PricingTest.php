@@ -26,7 +26,7 @@ class PricingTest extends TestCase
 
     public function test_the_form_calculates_the_final_price_from_the_markup(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         Livewire::test(ProductEditor::class)
             ->call('create')
@@ -40,7 +40,7 @@ class PricingTest extends TestCase
 
     public function test_editing_the_final_price_recalculates_the_markup_keeping_cost_and_vat(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $component = Livewire::test(ProductEditor::class)
             ->call('create')
@@ -57,7 +57,7 @@ class PricingTest extends TestCase
 
     public function test_optional_rounding_keeps_the_markup_coherent(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         Livewire::test(ProductEditor::class)
             ->call('create')

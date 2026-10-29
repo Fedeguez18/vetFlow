@@ -115,7 +115,7 @@ class PaymentReceiptTest extends TestCase
 
     public function test_a_success_modal_offers_the_receipt_after_registering_a_payment(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $component = Livewire::test(AccountsReceivable::class)
             ->call('selectProducer', $this->producer->id)
@@ -152,7 +152,7 @@ class PaymentReceiptTest extends TestCase
 
     public function test_the_receipts_stay_available_next_to_each_remito_and_movement(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
         $payment = app(PaymentService::class)->register($this->producer->id, 300000, 'efectivo');
 
         $component = Livewire::test(AccountsReceivable::class)->call('selectProducer', $this->producer->id);

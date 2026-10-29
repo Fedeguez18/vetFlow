@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['voucher_number', 'type', 'payment_method', 'producer_id', 'total', 'paid', 'status'])]
+#[Fillable(['voucher_number', 'type', 'payment_method', 'producer_id', 'total', 'paid', 'status', 'user_id', 'cash_session_id'])]
 class Sale extends Model
 {
     /**
@@ -60,5 +60,25 @@ class Sale extends Model
     public function saleItems(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    /**
+     * Get the user who made the sale.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the caja the sale was made in.
+     *
+     * @return BelongsTo<CashSession, $this>
+     */
+    public function cashSession(): BelongsTo
+    {
+        return $this->belongsTo(CashSession::class);
     }
 }

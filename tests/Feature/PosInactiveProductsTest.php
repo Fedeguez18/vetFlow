@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Livewire\Pos\PosDesk;
 use App\Models\Category;
 use App\Models\Product;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -22,7 +21,7 @@ class PosInactiveProductsTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->openCashRegister();
 
         $this->active = Product::factory()->create(['name' => 'Ivermectina 1% x 50 ml', 'barcode' => '7790000000017', 'stock' => 10]);
         $this->inactive = Product::factory()->create(['name' => 'Ivermectina Discontinuada x 50 ml', 'barcode' => '7790000000024', 'stock' => 10, 'is_active' => false]);

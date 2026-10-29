@@ -21,7 +21,7 @@ class RestockTest extends TestCase
     {
         parent::setUp();
 
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->admin()->create();
         $this->actingAs($this->user);
     }
 

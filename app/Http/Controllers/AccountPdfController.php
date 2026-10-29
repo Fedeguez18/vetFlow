@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Producer;
 use App\Models\Sale;
 use App\Services\AccountDocumentService;
+use App\Services\PosTerminalService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -44,6 +45,18 @@ class AccountPdfController extends Controller
         return Pdf::loadView('pdf.receipt', $documents->receipt($payment))
             ->setPaper('a4')
             ->stream("recibo-{$payment->voucher_number}.pdf");
+    }
+
+    /**
+     * The mostrador can reprint the remitos of the caja that is open on it, not any other.
+     */
+    public function posRemito(Sale $sale, PosTerminalService $terminals, AccountDocumentService $documents): Response
+    {
+        $cashSessionId = $terminals->current()?->openCashSession?->id;
+
+        abort_unless($cashSessionId && $sale->cash_session_id === $cashSessionId, 404);
+
+        return $this->remito($sale, $documents);
     }
 
     public function remito(Sale $sale, AccountDocumentService $documents): Response

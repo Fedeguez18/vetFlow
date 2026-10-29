@@ -16,7 +16,6 @@ class GuestAccessTest extends TestCase
     public static function protectedRoutes(): array
     {
         return [
-            'mostrador POS' => ['pos.desk'],
             'cuentas corrientes' => ['erp.accounts'],
             'auditoría' => ['erp.audit'],
             'rubros y proveedores' => ['erp.catalogs'],
@@ -30,5 +29,12 @@ class GuestAccessTest extends TestCase
         $this->get(route($routeName))->assertRedirect(route('login'));
 
         $this->assertGuest();
+    }
+
+    public function test_the_pos_outside_a_terminal_asks_to_enable_the_pc(): void
+    {
+        $this->get(route('pos.desk'))->assertRedirect(route('pos.setup'));
+        $this->get(route('pos.lock'))->assertRedirect(route('pos.setup'));
+        $this->withoutVite()->get(route('pos.setup'))->assertOk()->assertSee('Ingresar como administrador');
     }
 }

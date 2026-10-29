@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Livewire\Pos\PosDesk;
 use App\Models\Lot;
 use App\Models\Product;
-use App\Models\User;
 use App\Services\CheckoutService;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,7 +91,7 @@ class ExpiredLotsTest extends TestCase
 
     public function test_the_pos_only_offers_sellable_units(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->openCashRegister();
         $onlyExpired = $this->productWithLots([[-1, 4]]);
         $mixed = $this->productWithLots([[-1, 5], [30, 2]]);
 

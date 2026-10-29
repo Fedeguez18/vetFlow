@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Erp\AccountsReceivable;
 use App\Livewire\Erp\DailyAudit;
+use App\Livewire\Pos\PosDesk;
 use App\Models\Payment;
 use App\Models\Producer;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
 use App\Services\CashAuditService;
@@ -48,9 +51,47 @@ class CashAuditTest extends TestCase
         $this->assertSame(['qr' => 2500.5, 'efectivo' => 1000.0, 'tarjeta' => 499.5, 'transferencia' => 300.0], $summary['by_method']);
     }
 
+    public function test_each_movement_shows_the_user_who_made_it(): void
+    {
+        $this->withoutVite();
+        $seller = User::factory()->create(['name' => 'Laura']);
+        $admin = User::factory()->admin()->create(['name' => 'Diego']);
+        $product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 10, 'price' => 1500]);
+        $producer = Producer::create(['name' => 'Estancia La Josefina']);
+
+        $this->openCashRegister($seller);
+        Livewire::test(PosDesk::class)
+            ->call('addProduct', $product->id)
+            ->call('selectProducer', $producer->id)
+            ->set('paymentMethod', 'cuenta_corriente')
+            ->call('confirm');
+
+        $this->travel(1)->minutes();
+        $this->actingAs($admin);
+        Livewire::test(AccountsReceivable::class)
+            ->call('selectProducer', $producer->id)
+            ->call('openPaymentModal')
+            ->set('paymentAmount', '500')
+            ->call('registerPayment');
+
+        $this->travel(1)->minutes();
+        $this->sale('C-00000001', 'contado', 'efectivo', 100);
+
+        $entries = app(CashAuditService::class)->entries(CarbonImmutable::today());
+
+        $this->assertSame([
+            'R-00000001' => ['Laura', User::ROLE_SELLER],
+            'P-00000001' => ['Diego', User::ROLE_ADMIN],
+            'C-00000001' => [null, null],
+        ], $entries->mapWithKeys(fn (array $entry) => [$entry['voucher'] => [$entry['user'], $entry['user_role']]])->all());
+
+        $this->get('/erp/auditoria')->assertOk()
+            ->assertSeeInOrder(['R-00000001', 'Laura', 'Vendedor', 'P-00000001', 'Diego', 'Administrador', 'C-00000001', 'Sin registrar']);
+    }
+
     public function test_the_screen_ignores_future_and_invalid_dates(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         $this->assertTrue(Livewire::test(DailyAudit::class)->set('date', now()->addDay()->toDateString())->instance()->day->isToday());
         $this->assertTrue(Livewire::test(DailyAudit::class)->set('date', 'no-es-fecha')->instance()->day->isToday());

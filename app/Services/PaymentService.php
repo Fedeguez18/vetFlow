@@ -17,17 +17,22 @@ class PaymentService
      *
      * @throws PaymentException
      */
-    public function register(int $producerId, float $amount, string $method, ?string $notes = null): Payment
+    public function register(int $producerId, float $amount, string $method, ?string $notes = null, ?int $userId = null): Payment
     {
         $cents = $this->cents($amount);
 
-        return DB::transaction(function () use ($producerId, $cents, $method, $notes) {
-            $producer = Producer::query()->lockForUpdate()->findOrFail($producerId);
+        if (! array_key_exists($method, Payment::METHODS)) {
+            throw new PaymentException('Elegí un medio de pago válido.');
+        }
+
+        return DB::transaction(function () use ($producerId, $cents, $method, $notes, $userId) {
+            $producer = $this->lockActiveProducer($producerId);
 
             $payment = $producer->payments()->create([
                 'amount' => $cents / 100,
                 'payment_method' => $method,
                 'notes' => trim((string) $notes) ?: null,
+                'user_id' => $userId,
             ]);
 
             $this->credit($producer, $cents);
@@ -51,7 +56,7 @@ class PaymentService
         }
 
         return DB::transaction(function () use ($producerId, $cents, $reason) {
-            $producer = Producer::query()->lockForUpdate()->findOrFail($producerId);
+            $producer = $this->lockActiveProducer($producerId);
 
             $creditNote = $producer->creditNotes()->create([
                 'amount' => $cents / 100,
@@ -76,6 +81,22 @@ class PaymentService
         }
 
         return $cents;
+    }
+
+    /**
+     * Lock the producer for the movement; accounts given a baja can't receive payments or credit notes.
+     *
+     * @throws PaymentException
+     */
+    protected function lockActiveProducer(int $producerId): Producer
+    {
+        $producer = Producer::query()->lockForUpdate()->findOrFail($producerId);
+
+        if (! $producer->is_active) {
+            throw new PaymentException("La cuenta de {$producer->name} está dada de baja. Reactivala para registrar movimientos.");
+        }
+
+        return $producer;
     }
 
     /**

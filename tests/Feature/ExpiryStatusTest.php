@@ -43,7 +43,7 @@ class ExpiryStatusTest extends TestCase
 
     public function test_the_inventory_shows_each_alert_label(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
 
         foreach (['Vencido' => -5, 'Critico' => 14, 'Atencion' => 45, 'Al dia' => 200] as $name => $days) {
             $product = Product::factory()->tracksExpiry()->create(['name' => "Lote {$name}"]);

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Erp;
 
+use App\Livewire\Concerns\RequiresAdmin;
 use App\Models\Category;
 use App\Models\Lot;
 use App\Models\Product;
@@ -23,7 +24,7 @@ use Livewire\WithPagination;
 #[Title('Inventario & Lotes')]
 class InventoryCatalog extends Component
 {
-    use WithPagination;
+    use RequiresAdmin, WithPagination;
 
     public const PER_PAGE = 10;
 

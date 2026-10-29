@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -39,16 +40,24 @@ class Login extends Component
             ]);
         }
 
-        if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+        if (! Auth::validate(['email' => $this->email, 'password' => $this->password])) {
             RateLimiter::hit($key);
 
             throw ValidationException::withMessages(['email' => 'Email o contraseña incorrectos.']);
         }
 
+        /** @var User $user */
+        $user = Auth::getLastAttempted();
+
+        if (! $user->is_active) {
+            throw ValidationException::withMessages(['email' => 'Tu usuario fue dado de baja. Consultá con el administrador.']);
+        }
+
+        Auth::login($user, $this->remember);
         RateLimiter::clear($key);
         session()->regenerate();
 
-        return $this->redirectIntended(route('pos.desk'), navigate: false);
+        return $this->redirectIntended($user->homeUrl(), navigate: false);
     }
 
     public function render()

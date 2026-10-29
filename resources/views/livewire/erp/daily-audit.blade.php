@@ -85,6 +85,79 @@
         @endforeach
     </div>
 
+    {{-- Cierres de caja del mostrador --}}
+    <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <h2 class="font-semibold text-slate-800">Cajas del mostrador</h2>
+            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{{ $this->cashSessions->count() }}</span>
+        </div>
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                    <th class="px-4 py-3">Usuario</th>
+                    <th class="px-4 py-3">Horario</th>
+                    <th class="px-4 py-3">Ventas</th>
+                    <th class="px-4 py-3 text-right">Efectivo esperado</th>
+                    <th class="px-4 py-3 text-right">Contado</th>
+                    <th class="px-4 py-3 text-right">Diferencia</th>
+                    <th class="px-4 py-3 text-right">Estado</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @forelse ($this->cashSessions as $row)
+                    @php($session = $row['session'])
+                    @php($difference = $session->difference())
+                    <tr wire:key="cash-session-{{ $session->id }}" class="align-top hover:bg-slate-50">
+                        <td class="whitespace-nowrap px-4 py-3">
+                            <span class="font-medium text-slate-800">{{ $session->user->name }}</span>
+                            <span @class([
+                                'ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1',
+                                'bg-sky-50 text-sky-700 ring-sky-600/15' => $session->user->role === \App\Models\User::ROLE_ADMIN,
+                                'bg-emerald-50 text-emerald-700 ring-emerald-600/15' => $session->user->role !== \App\Models\User::ROLE_ADMIN,
+                            ])>{{ $session->user->role }}</span>
+                            @if ($session->posTerminal)
+                                <span class="block text-xs text-slate-500">{{ $session->posTerminal->name }}</span>
+                            @endif
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 font-mono text-slate-600">
+                            {{ $session->created_at->format('d/m H:i') }} a {{ $session->closed_at?->format('d/m H:i') ?? '…' }}
+                        </td>
+                        <td class="px-4 py-3 text-slate-700">
+                            <span class="block">{{ $row['sales'] }} {{ $row['sales'] === 1 ? 'venta' : 'ventas' }} · fondo {{ $money($session->opening_amount) }}</span>
+                            @foreach ($row['by_method'] as $method => $amount)
+                                <span class="block text-xs text-slate-500">{{ $methods[$method] ?? $method }}: {{ $money($amount) }}</span>
+                            @endforeach
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{{ $money($row['expected']) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-800">{{ $session->isOpen() ? '—' : $money($session->declared_cash) }}</td>
+                        <td @class([
+                            'whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums',
+                            'text-slate-400' => $difference === null,
+                            'text-emerald-700' => $difference !== null && $difference == 0,
+                            'text-rose-600' => $difference !== null && $difference < 0,
+                            'text-amber-700' => $difference !== null && $difference > 0,
+                        ])>
+                            {{ $difference === null ? '—' : ($difference > 0 ? '+' : '').$money($difference) }}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right">
+                            @if ($session->isOpen())
+                                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-600/15">Abierta</span>
+                            @elseif ($session->reviewed_at)
+                                <span class="block text-xs text-slate-500">Revisada por {{ $session->reviewer?->name ?? '—' }}</span>
+                            @else
+                                <button type="button" wire:click="reviewCashSession({{ $session->id }})" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#0F2A26] ring-1 ring-slate-300 hover:bg-slate-100">Marcar revisada</button>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-slate-500">No hubo cajas abiertas en el día.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
     {{-- Chronological audit --}}
     <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -98,6 +171,7 @@
                     <th class="px-4 py-3">Comprobante</th>
                     <th class="px-4 py-3">Cliente</th>
                     <th class="px-4 py-3">Método de pago</th>
+                    <th class="px-4 py-3">Usuario</th>
                     <th class="px-4 py-3 text-right">Monto</th>
                 </tr>
             </thead>
@@ -113,6 +187,18 @@
                         <td @class(['whitespace-nowrap px-4 py-3', 'text-slate-700' => $entry['method'], 'italic text-slate-400' => ! $entry['method']])>
                             {{ $methods[$entry['method'] ?? 'sin_registrar'] ?? $entry['method'] }}
                         </td>
+                        <td class="whitespace-nowrap px-4 py-3">
+                            @if ($entry['user'])
+                                <span class="text-slate-700">{{ $entry['user'] }}</span>
+                                <span @class([
+                                    'ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1',
+                                    'bg-sky-50 text-sky-700 ring-sky-600/15' => $entry['user_role'] === \App\Models\User::ROLE_ADMIN,
+                                    'bg-emerald-50 text-emerald-700 ring-emerald-600/15' => $entry['user_role'] !== \App\Models\User::ROLE_ADMIN,
+                                ])>{{ $entry['user_role'] }}</span>
+                            @else
+                                <span class="italic text-slate-400">Sin registrar</span>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-4 py-3 text-right">
                             <span @class(['font-semibold tabular-nums', 'text-slate-800' => $entry['collected'] > 0, 'text-slate-400' => $entry['collected'] <= 0])>
                                 {{ $money($entry['amount']) }}
@@ -124,14 +210,14 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-12 text-center text-slate-500">No hubo movimientos en el día.</td>
+                        <td colspan="6" class="px-4 py-12 text-center text-slate-500">No hubo movimientos en el día.</td>
                     </tr>
                 @endforelse
             </tbody>
             @if ($this->entries->isNotEmpty())
                 <tfoot class="border-t border-slate-200 bg-slate-50">
                     <tr>
-                        <td colspan="4" class="px-4 py-3 text-right font-medium text-slate-600">Total cobrado</td>
+                        <td colspan="5" class="px-4 py-3 text-right font-medium text-slate-600">Total cobrado</td>
                         <td class="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-900">{{ $money($summary['collected']) }}</td>
                     </tr>
                 </tfoot>

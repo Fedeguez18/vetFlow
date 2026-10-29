@@ -21,7 +21,7 @@ class LotStockTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
     }
 
     protected function assertStockMatchesLots(Product $product): void

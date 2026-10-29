@@ -31,7 +31,7 @@ class CurrentAccountCycleTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
         $this->producer = Producer::create(['name' => 'Estancia La Josefina']);
         $this->product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 100, 'price' => 1000]);
     }
@@ -91,6 +91,7 @@ class CurrentAccountCycleTest extends TestCase
     public function test_the_pos_warns_and_emits_the_remito_after_confirming(): void
     {
         $this->producer->update(['credit_limit' => 500]);
+        $this->openCashRegister();
 
         $pos = Livewire::test(PosDesk::class)
             ->call('addProduct', $this->product->id)
@@ -110,6 +111,7 @@ class CurrentAccountCycleTest extends TestCase
     public function test_confirming_over_the_limit_without_the_warning_is_ignored(): void
     {
         $this->producer->update(['credit_limit' => 500]);
+        $this->openCashRegister();
 
         Livewire::test(PosDesk::class)
             ->call('addProduct', $this->product->id)

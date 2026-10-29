@@ -21,7 +21,7 @@ class ProducerAccountsTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
     }
 
     public function test_a_new_account_is_created_and_selected(): void
@@ -102,6 +102,7 @@ class ProducerAccountsTest extends TestCase
         $this->assertFalse($producer->fresh()->is_active);
         $this->assertSame([], $component->instance()->producers->pluck('name')->all());
         $this->assertSame(['Haras San Jorge'], $component->set('showInactive', true)->instance()->producers->pluck('name')->all());
+        $this->openCashRegister();
         $this->assertSame([], Livewire::test(PosDesk::class)->instance()->producers->pluck('name')->all());
     }
 

@@ -21,7 +21,7 @@ class CheckoutService
      * above the producer's credit limit needs "allow_over_limit".
      *
      * @param  array<int, array{product_id: int, quantity: int}>  $cartItems
-     * @param  array{type: string, producer_id?: int|null, payment_method?: string|null, voucher_number?: string|null, user_id?: int|null, allow_over_limit?: bool}  $checkoutData
+     * @param  array{type: string, producer_id?: int|null, payment_method?: string|null, voucher_number?: string|null, user_id?: int|null, cash_session_id?: int|null, allow_over_limit?: bool}  $checkoutData
      *
      * @throws CreditLimitException
      * @throws Exception
@@ -99,6 +99,8 @@ class CheckoutService
                 'producer_id' => $producerId,
                 'total' => $total,
                 'paid' => $paid,
+                'user_id' => $checkoutData['user_id'] ?? null,
+                'cash_session_id' => $checkoutData['cash_session_id'] ?? null,
                 'status' => match (true) {
                     $paid >= $total => 'pagada',
                     $paid > 0 => 'parcial',

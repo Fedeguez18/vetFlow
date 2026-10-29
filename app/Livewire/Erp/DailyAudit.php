@@ -2,9 +2,14 @@
 
 namespace App\Livewire\Erp;
 
+use App\Exceptions\CashSessionException;
+use App\Livewire\Concerns\RequiresAdmin;
+use App\Models\CashSession;
 use App\Services\CashAuditService;
+use App\Services\CashSessionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -16,6 +21,8 @@ use Throwable;
 #[Title('Auditoría & Caja')]
 class DailyAudit extends Component
 {
+    use RequiresAdmin;
+
     #[Url(except: '')]
     public string $date = '';
 
@@ -44,6 +51,28 @@ class DailyAudit extends Component
     public function summary(): array
     {
         return app(CashAuditService::class)->summary($this->entries);
+    }
+
+    /**
+     * @return Collection<int, array{session: CashSession, by_method: array<string, float>, sales: int, expected: float}>
+     */
+    #[Computed]
+    public function cashSessions(): Collection
+    {
+        return app(CashSessionService::class)->forDay($this->day);
+    }
+
+    public function reviewCashSession(int $id, CashSessionService $cashSessions): void
+    {
+        try {
+            $cashSessions->review(CashSession::findOrFail($id), Auth::user());
+        } catch (CashSessionException $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+
+            return;
+        }
+
+        unset($this->cashSessions);
     }
 
     public function render()

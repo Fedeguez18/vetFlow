@@ -21,7 +21,7 @@ class CategoriesSuppliersTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->admin()->create());
     }
 
     public function test_the_page_is_reachable_from_the_erp_tabs(): void

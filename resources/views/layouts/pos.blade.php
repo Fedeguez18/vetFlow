@@ -14,7 +14,7 @@
     @livewireStyles
 </head>
 <body class="min-h-full bg-[#F4F6F5] font-sans text-slate-800 antialiased">
-    @php($user = auth()->user())
+    @php($cashSession = app(\App\Services\PosTerminalService::class)->current()?->openCashSession?->load('user'))
 
     {{-- Terminal Mostrador (PC 1): sin navegación hacia el ERP. --}}
     <header class="sticky top-0 z-40 border-b border-slate-200 bg-white">
@@ -45,18 +45,15 @@
                     x-text="time"
                 >--:--</div>
 
-                @if ($user)
+                @if ($cashSession)
                     <div class="flex items-center gap-2.5">
-                        <a href="{{ route('profile') }}" target="_blank" title="Mi perfil" class="hidden text-right leading-tight hover:opacity-80 sm:block">
-                            <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $user->role }}</div>
-                            <div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div>
-                        </a>
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button type="submit" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100 hover:text-slate-800">
-                                Salir
-                            </button>
-                        </form>
+                        <div class="hidden text-right leading-tight sm:block">
+                            <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Caja abierta · {{ $cashSession->user->role }}</div>
+                            <div class="text-sm font-semibold text-slate-900">{{ $cashSession->user->name }}</div>
+                        </div>
+                        <button type="button" x-on:click="Livewire.dispatch('close-cash-register')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100 hover:text-slate-800">
+                            Cerrar caja
+                        </button>
                     </div>
                 @endif
             </div>

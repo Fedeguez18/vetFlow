@@ -34,7 +34,9 @@ class RegistrationTest extends TestCase
             ->call('register')
             ->assertRedirect(route('pos.desk'));
 
-        $this->assertAuthenticatedAs(User::where('email', 'laura@example.com')->sole());
+        $user = User::where('email', 'laura@example.com')->sole();
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame(User::ROLE_SELLER, $user->role);
     }
 
     public function test_registration_validates_the_input(): void
