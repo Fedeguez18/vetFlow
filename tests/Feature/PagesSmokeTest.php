@@ -26,7 +26,8 @@ class PagesSmokeTest extends TestCase
         $this->get('/erp/auditoria')->assertOk()->assertSee('Total cobrado hoy');
 
         $this->openCashRegister($admin);
-        $this->get('/pos')->assertOk()->assertSee('Biológicos/Vacunas')->assertSee('Diego')->assertSee('Caja abierta · Administrador');
+        $this->get('/pos')->assertOk()->assertSee('Biológicos/Vacunas')->assertSee('Diego')->assertSee('Caja abierta · Administrador')
+            ->assertSee('onclick="Livewire.dispatch(\'close-cash-register\')"', false);
     }
 
     public function test_each_terminal_renders_its_own_shell(): void

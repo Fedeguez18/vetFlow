@@ -51,7 +51,7 @@
                             <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Caja abierta · {{ $cashSession->user->role }}</div>
                             <div class="text-sm font-semibold text-slate-900">{{ $cashSession->user->name }}</div>
                         </div>
-                        <button type="button" x-on:click="Livewire.dispatch('close-cash-register')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100 hover:text-slate-800">
+                        <button type="button" onclick="Livewire.dispatch('close-cash-register')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100 hover:text-slate-800">
                             Cerrar caja
                         </button>
                     </div>
