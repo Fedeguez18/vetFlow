@@ -119,7 +119,7 @@ class CashRegisterTest extends TestCase
         $seller = User::factory()->create(['name' => 'Laura']);
         $cashSession = $this->openCashRegister($seller, 1000);
         $product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 10, 'price' => 1500]);
-        $producer = Producer::create(['name' => 'Estancia La Josefina']);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
 
         $pos = Livewire::test(PosDesk::class);
         $pos->call('addProduct', $product->id)->set('paymentMethod', 'efectivo')->call('confirm');
@@ -148,7 +148,7 @@ class CashRegisterTest extends TestCase
     {
         $this->withoutVite();
         $cashSession = CashSession::factory()->create(['opening_amount' => 1000]);
-        Sale::create(['voucher_number' => 'C-00000001', 'type' => 'contado', 'payment_method' => 'efectivo', 'total' => 1500, 'paid' => 1500, 'status' => 'pagada', 'cash_session_id' => $cashSession->id, 'user_id' => $cashSession->user_id]);
+        Sale::factory()->for($cashSession)->create(['total' => 1500, 'user_id' => $cashSession->user_id]);
         $cashSession->update(['closed_at' => now(), 'expected_cash' => 2500, 'declared_cash' => 2400]);
         $admin = User::factory()->admin()->create(['name' => 'Diego']);
         $this->actingAs($admin);
@@ -165,9 +165,9 @@ class CashRegisterTest extends TestCase
     public function test_the_pos_reprints_only_the_remitos_of_its_open_caja(): void
     {
         $cashSession = $this->openCashRegister();
-        $producer = Producer::create(['name' => 'Estancia La Josefina']);
-        $own = Sale::create(['voucher_number' => 'R-00000001', 'type' => 'remito', 'payment_method' => 'cuenta_corriente', 'producer_id' => $producer->id, 'total' => 1000, 'paid' => 0, 'status' => 'pendiente', 'cash_session_id' => $cashSession->id]);
-        $other = Sale::create(['voucher_number' => 'R-00000002', 'type' => 'remito', 'payment_method' => 'cuenta_corriente', 'producer_id' => $producer->id, 'total' => 1000, 'paid' => 0, 'status' => 'pendiente']);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
+        $own = Sale::factory()->remito()->for($producer)->for($cashSession)->create(['total' => 1000]);
+        $other = Sale::factory()->remito()->for($producer)->create(['total' => 1000]);
 
         $this->get(route('pos.remito-pdf', $own))->assertOk();
         $this->get(route('pos.remito-pdf', $other))->assertNotFound();

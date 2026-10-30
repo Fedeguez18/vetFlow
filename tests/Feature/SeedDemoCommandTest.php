@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Models\User;
+use Database\Seeders\ProductSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,7 +21,7 @@ class SeedDemoCommandTest extends TestCase
 
         $this->artisan('app:seed-demo')->assertSuccessful();
 
-        $this->assertSame(128, Product::count());
+        $this->assertSame(ProductSeeder::TOTAL, Product::count());
         $this->assertTrue(Producer::exists());
         $this->assertSame(1, User::count());
         $this->assertTrue(Sale::exists());
@@ -34,7 +35,7 @@ class SeedDemoCommandTest extends TestCase
         $this->artisan('app:seed-demo')->assertSuccessful();
         $this->artisan('app:seed-demo')->assertSuccessful();
 
-        $this->assertSame(128, Product::count());
+        $this->assertSame(ProductSeeder::TOTAL, Product::count());
     }
 
     public function test_it_requires_a_user(): void

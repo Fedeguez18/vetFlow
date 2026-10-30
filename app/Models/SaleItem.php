@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
+use Database\Factories\SaleItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['sale_id', 'product_id', 'quantity', 'unit_price', 'subtotal'])]
 class SaleItem extends Model
 {
+    /** @use HasFactory<SaleItemFactory> */
+    use HasFactory;
+
     /**
      * Get the attributes that should be cast.
      *

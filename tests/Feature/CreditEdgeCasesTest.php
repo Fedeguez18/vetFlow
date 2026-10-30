@@ -25,7 +25,7 @@ class CreditEdgeCasesTest extends TestCase
         parent::setUp();
 
         $this->actingAs(User::factory()->admin()->create());
-        $this->producer = Producer::create(['name' => 'Estancia La Josefina']);
+        $this->producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
         $this->product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 100, 'price' => 200]);
     }
 
@@ -37,18 +37,10 @@ class CreditEdgeCasesTest extends TestCase
         );
     }
 
-    protected function manualRemito(string $voucher, float $total, $date): Sale
-    {
-        $sale = Sale::create(['voucher_number' => $voucher, 'type' => 'remito', 'payment_method' => 'cuenta_corriente', 'producer_id' => $this->producer->id, 'total' => $total, 'paid' => 0, 'status' => 'pendiente']);
-        $sale->forceFill(['created_at' => $date])->save();
-
-        return $sale;
-    }
-
     public function test_a_credit_note_above_the_debt_settles_every_remito_and_leaves_a_credit_balance(): void
     {
-        $older = $this->manualRemito('R-00000001', 1000, now()->subDays(5));
-        $newer = $this->manualRemito('R-00000002', 2000, now()->subDay());
+        $older = Sale::factory()->remito()->for($this->producer)->create(['total' => 1000, 'created_at' => now()->subDays(5)]);
+        $newer = Sale::factory()->remito()->for($this->producer)->create(['total' => 2000, 'created_at' => now()->subDay()]);
         $this->producer->update(['balance' => 3000]);
 
         $creditNote = app(PaymentService::class)->registerCreditNote($this->producer->id, 3800, '  Devolución de mercadería  ');
@@ -105,7 +97,7 @@ class CreditEdgeCasesTest extends TestCase
             $this->remito(8);
             $this->fail('El remito con deuda neta de 1100 tendría que superar el límite de 1000.');
         } catch (CreditLimitException $e) {
-            $this->assertSame('El remito de $ 1.600,00 supera el límite de crédito de Estancia La Josefina: límite $ 1.000,00, saldo actual $ -500,00.', $e->getMessage());
+            $this->assertSame('El remito de $ 1.600,00 supera el límite de crédito de Estancia La Josefina: límite $ 1.000,00, saldo a favor $ 500,00.', $e->getMessage());
         }
 
         $this->assertSame(0, Sale::count());

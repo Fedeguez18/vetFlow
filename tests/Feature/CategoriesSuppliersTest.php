@@ -156,7 +156,7 @@ class CategoriesSuppliersTest extends TestCase
 
         $withHistory = Supplier::factory()->create();
         $product = Product::factory()->create(['supplier_id' => null]);
-        StockMovement::create(['product_id' => $product->id, 'supplier_id' => $withHistory->id, 'type' => 'ingreso', 'quantity' => 5]);
+        StockMovement::factory()->create(['product_id' => $product->id, 'supplier_id' => $withHistory->id, 'quantity' => 5]);
 
         $unused = Supplier::factory()->create();
 

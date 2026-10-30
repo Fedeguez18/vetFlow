@@ -111,7 +111,7 @@ class ProductCreationTest extends TestCase
 
     public function test_scanning_the_barcode_of_an_inactive_product_opens_it_and_explains_how_to_reactivate_it(): void
     {
-        $product = Product::factory()->create(['barcode' => '7790001112223', 'name' => 'Ivermectina 1%', 'is_active' => false]);
+        $product = Product::factory()->inactive()->create(['barcode' => '7790001112223', 'name' => 'Ivermectina 1%']);
 
         Livewire::test(ProductEditor::class)
             ->call('create')

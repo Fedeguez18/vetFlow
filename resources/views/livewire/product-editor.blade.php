@@ -181,6 +181,7 @@
                                             <span class="text-xs text-slate-400">(no se puede cambiar con stock cargado)</span>
                                         @endif
                                     </label>
+                                    @error('form.tracks_expiry') <p class="-mt-2 text-xs text-rose-600 sm:col-span-3">{{ $message }}</p> @enderror
 
                                     @if (! $editing)
                                         @if ($form->tracks_expiry)

@@ -2,14 +2,19 @@
 
 namespace App\Models;
 
+use Database\Factories\ProducerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name', 'business_name', 'cuit', 'phone', 'iva_condition', 'discount_percent', 'balance', 'credit_limit', 'is_active'])]
 class Producer extends Model
 {
+    /** @use HasFactory<ProducerFactory> */
+    use HasFactory;
+
     /**
      * Name of the generic walk-in customer record.
      */

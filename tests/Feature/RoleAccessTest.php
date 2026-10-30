@@ -7,6 +7,7 @@ use App\Livewire\Erp\CategoriesSuppliers;
 use App\Livewire\Erp\InventoryCatalog;
 use App\Livewire\ProductEditor;
 use App\Models\Category;
+use App\Models\Payment;
 use App\Models\Producer;
 use App\Models\Product;
 use App\Models\Sale;
@@ -45,9 +46,9 @@ class RoleAccessTest extends TestCase
 
     public function test_a_seller_cannot_open_account_documents(): void
     {
-        $producer = Producer::create(['name' => 'Estancia La Josefina']);
-        $payment = $producer->payments()->create(['amount' => 100, 'payment_method' => 'efectivo']);
-        $sale = Sale::create(['voucher_number' => 'R-00000001', 'type' => 'remito', 'payment_method' => 'cuenta_corriente', 'producer_id' => $producer->id, 'total' => 1000, 'paid' => 0, 'status' => 'pendiente']);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
+        $payment = Payment::factory()->for($producer)->create();
+        $sale = Sale::factory()->remito()->for($producer)->create();
 
         $this->actingAs(User::factory()->create());
 
@@ -81,7 +82,7 @@ class RoleAccessTest extends TestCase
     public function test_a_credit_note_is_rejected_once_the_user_is_no_longer_admin(): void
     {
         $admin = User::factory()->admin()->create();
-        $producer = Producer::create(['name' => 'Estancia La Josefina', 'balance' => 3000]);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina', 'balance' => 3000]);
         $this->actingAs($admin);
 
         $component = Livewire::test(AccountsReceivable::class)

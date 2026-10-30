@@ -63,4 +63,12 @@ class ProductFactory extends Factory
     {
         return $this->state(fn () => ['tracks_expiry' => true, 'stock' => 0]);
     }
+
+    /**
+     * Product given a baja: it stays in the history but can't be sold.
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn () => ['is_active' => false]);
+    }
 }

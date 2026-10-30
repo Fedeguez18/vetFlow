@@ -28,17 +28,9 @@ class AccountPaymentsTest extends TestCase
         parent::setUp();
 
         $this->actingAs(User::factory()->admin()->create());
-        $this->producer = Producer::create(['name' => 'Estancia La Josefina', 'phone' => '(0358) 15-464-2210', 'balance' => 3000]);
-        $this->older = $this->remito('R-00000001', 1000, now()->subDays(5));
-        $this->newer = $this->remito('R-00000002', 2000, now()->subDay());
-    }
-
-    protected function remito(string $voucher, float $total, $date): Sale
-    {
-        $sale = Sale::create(['voucher_number' => $voucher, 'type' => 'remito', 'payment_method' => 'cuenta_corriente', 'producer_id' => $this->producer->id, 'total' => $total, 'paid' => 0, 'status' => 'pendiente']);
-        $sale->forceFill(['created_at' => $date])->save();
-
-        return $sale;
+        $this->producer = Producer::factory()->create(['name' => 'Estancia La Josefina', 'phone' => '(0358) 15-464-2210', 'balance' => 3000]);
+        $this->older = Sale::factory()->remito()->for($this->producer)->create(['total' => 1000, 'created_at' => now()->subDays(5)]);
+        $this->newer = Sale::factory()->remito()->for($this->producer)->create(['total' => 2000, 'created_at' => now()->subDay()]);
     }
 
     public function test_a_partial_payment_settles_the_oldest_remito_first(): void
@@ -185,7 +177,7 @@ class AccountPaymentsTest extends TestCase
 
     public function test_the_producer_list_filters_and_counts_unpaid_remitos(): void
     {
-        Producer::create(['name' => 'Haras El Ombú', 'cuit' => '20-12345678-9']);
+        Producer::factory()->create(['name' => 'Haras El Ombú', 'cuit' => '20-12345678-9']);
 
         $component = Livewire::test(AccountsReceivable::class)->set('search', 'josefina');
 

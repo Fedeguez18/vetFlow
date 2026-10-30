@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['voucher_number', 'type', 'payment_method', 'producer_id', 'total', 'paid', 'status', 'user_id', 'cash_session_id'])]
 class Sale extends Model
 {
+    /** @use HasFactory<SaleFactory> */
+    use HasFactory;
+
     /**
      * Remito statuses that still carry debt.
      */

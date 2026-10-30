@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\StockException;
 use App\Livewire\ProductEditor;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\CheckoutService;
+use App\Services\ProductService;
 use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -85,5 +87,54 @@ class LotStockTest extends TestCase
         $movements = StockMovement::where('sale_id', $sale->id)->orderBy('id')->get();
         $this->assertSame([[$sooner->id, -4], [$later->id, -2]], $movements->map(fn ($m) => [$m->lot_id, $m->quantity])->all());
         $this->assertTrue($movements->every(fn ($m) => $m->type === 'venta'));
+    }
+
+    public function test_expiry_tracking_cannot_be_turned_on_while_the_product_has_stock(): void
+    {
+        $product = Product::factory()->create(['name' => 'Ivermectina 1%', 'stock' => 30]);
+
+        try {
+            app(ProductService::class)->update($product, ['tracks_expiry' => true]);
+            $this->fail('Activar el vencimiento con stock sin lotes dejaría el stock vendible en 0.');
+        } catch (StockException $e) {
+            $this->assertSame('No se puede cambiar el control de vencimientos de Ivermectina 1% con 30 unidades en stock. Ajustá el stock a 0, cambiá la opción y volvé a ingresar las unidades.', $e->getMessage());
+        }
+
+        $product->refresh();
+        $this->assertFalse($product->tracks_expiry);
+        $this->assertSame(30, $product->sellableStock());
+    }
+
+    public function test_expiry_tracking_cannot_be_turned_off_while_the_product_has_lots_in_stock(): void
+    {
+        $product = Product::factory()->tracksExpiry()->create();
+        $product->lots()->create(['lot_number' => 'A1', 'expiration_date' => today()->subDay(), 'quantity' => 5]);
+        $product->syncStockFromLots();
+
+        $this->expectException(StockException::class);
+
+        app(ProductService::class)->update($product, ['tracks_expiry' => false]);
+    }
+
+    public function test_expiry_tracking_can_be_switched_without_stock(): void
+    {
+        $product = Product::factory()->create(['stock' => 0]);
+
+        app(ProductService::class)->update($product, ['tracks_expiry' => true]);
+
+        $this->assertTrue($product->fresh()->tracks_expiry);
+    }
+
+    public function test_the_editor_shows_why_expiry_tracking_cannot_be_switched_with_stock(): void
+    {
+        $product = Product::factory()->create(['category_id' => Category::factory(), 'stock' => 12]);
+
+        Livewire::test(ProductEditor::class)
+            ->call('edit', $product->id)
+            ->set('form.tracks_expiry', true)
+            ->call('save')
+            ->assertHasErrors('form.tracks_expiry');
+
+        $this->assertFalse($product->fresh()->tracks_expiry);
     }
 }

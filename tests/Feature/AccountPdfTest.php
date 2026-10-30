@@ -25,7 +25,7 @@ class AccountPdfTest extends TestCase
     {
         parent::setUp();
 
-        $this->producer = Producer::create(['name' => 'Marome SA', 'cuit' => '30-50937538-7']);
+        $this->producer = Producer::factory()->create(['name' => 'Marome SA', 'cuit' => '30-50937538-7']);
         $taxed = Product::factory()->create(['sku' => 'FLOK500', 'name' => 'Flok x 500 cc', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 50, 'price' => 1210, 'vat_percent' => 21]);
         $exempt = Product::factory()->create(['sku' => 'HON-EQ', 'name' => 'Honorarios Equino', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 50, 'price' => 500, 'vat_percent' => 0]);
 
@@ -146,7 +146,7 @@ class AccountPdfTest extends TestCase
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        $sale = Sale::create(['voucher_number' => 'C-00000001', 'type' => 'contado', 'payment_method' => 'efectivo', 'total' => 100, 'paid' => 100, 'status' => 'pagada']);
+        $sale = Sale::factory()->create(['total' => 100]);
 
         $this->get(route('erp.remitos.pdf', $sale))->assertNotFound();
     }

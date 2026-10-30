@@ -25,7 +25,7 @@ class VoucherNumberingTest extends TestCase
 
         $this->checkout = app(CheckoutService::class);
         $this->product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 100, 'price' => 500]);
-        $this->producer = Producer::create(['name' => 'Estancia La Josefina']);
+        $this->producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
     }
 
     protected function sell(string $type, int $quantity = 1): string

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\StockException;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 
@@ -44,14 +45,27 @@ class ProductService
 
     /**
      * Update the product data (never the stock) and keep the price history when any price field changes.
+     * Expiry tracking can only be switched while the product has no stock: the units already loaded
+     * would otherwise stop being sellable (no lots) or lose their expiry control (lots ignored).
      *
      * @param  array<string, mixed>  $attributes
+     *
+     * @throws StockException
      */
     public function update(Product $product, array $attributes, ?int $userId = null): Product
     {
         unset($attributes['stock']);
 
         return DB::transaction(function () use ($product, $attributes, $userId) {
+            if (array_key_exists('tracks_expiry', $attributes) && (bool) $attributes['tracks_expiry'] !== (bool) $product->tracks_expiry) {
+                $stock = (int) Product::query()->whereKey($product->id)->lockForUpdate()->value('stock');
+
+                if ($stock > 0) {
+                    throw new StockException("No se puede cambiar el control de vencimientos de {$product->name} con {$stock} unidades en stock. "
+                        .'Ajustá el stock a 0, cambiá la opción y volvé a ingresar las unidades.');
+                }
+            }
+
             $product->fill($attributes);
             $priceChanged = $product->isDirty(['cost_price', 'markup_percent', 'vat_percent', 'price']);
             $product->save();

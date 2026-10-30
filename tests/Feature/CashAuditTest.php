@@ -20,30 +20,24 @@ class CashAuditTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function sale(string $voucher, string $type, ?string $method, float $total, ?int $producerId = null, $date = null): void
-    {
-        $sale = Sale::create(['voucher_number' => $voucher, 'type' => $type, 'payment_method' => $method, 'producer_id' => $producerId, 'total' => $total, 'paid' => $type === 'contado' ? $total : 0, 'status' => $type === 'contado' ? 'pagada' : 'pendiente']);
-        $sale->forceFill(['created_at' => $date ?? now()])->save();
-    }
-
     public function test_the_summary_splits_the_day_by_method(): void
     {
-        $producer = Producer::create(['name' => 'Estancia La Josefina', 'balance' => 9000]);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina', 'balance' => 9000]);
 
         $at = fn (int $hour) => today()->setTime($hour, 0);
 
-        $this->sale('C-00000001', 'contado', 'efectivo', 1000, null, $at(9));
-        $this->sale('C-00000002', 'contado', 'qr', 2500.50, null, $at(10));
-        $this->sale('C-00000003', 'contado', 'tarjeta', 499.50, null, $at(11));
-        $this->sale('R-00000001', 'remito', 'cuenta_corriente', 9000, $producer->id, $at(12));
-        $this->sale('C-00000004', 'contado', 'efectivo', 7777, null, now()->subDay());
-        Payment::create(['producer_id' => $producer->id, 'amount' => 300, 'payment_method' => 'transferencia'])->forceFill(['created_at' => $at(13)])->save();
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 1000, 'created_at' => $at(9)]);
+        Sale::factory()->create(['payment_method' => 'qr', 'total' => 2500.50, 'created_at' => $at(10)]);
+        Sale::factory()->create(['payment_method' => 'tarjeta', 'total' => 499.50, 'created_at' => $at(11)]);
+        Sale::factory()->remito()->for($producer)->create(['total' => 9000, 'created_at' => $at(12)]);
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 7777, 'created_at' => now()->subDay()]);
+        $payment = Payment::factory()->for($producer)->create(['amount' => 300, 'payment_method' => 'transferencia', 'created_at' => $at(13)]);
 
         $audit = app(CashAuditService::class);
         $entries = $audit->entries(CarbonImmutable::today());
         $summary = $audit->summary($entries);
 
-        $this->assertSame(['C-00000001', 'C-00000002', 'C-00000003', 'R-00000001', 'P-00000001'], $entries->pluck('voucher')->all());
+        $this->assertSame(['C-00000001', 'C-00000002', 'C-00000003', 'R-00000001', $payment->voucher_number], $entries->pluck('voucher')->all());
         $this->assertSame(4300.0, $summary['collected']);
         $this->assertSame(1000.0, $summary['cash']);
         $this->assertSame(2800.5, $summary['bank']);
@@ -57,7 +51,7 @@ class CashAuditTest extends TestCase
         $seller = User::factory()->create(['name' => 'Laura']);
         $admin = User::factory()->admin()->create(['name' => 'Diego']);
         $product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 10, 'price' => 1500]);
-        $producer = Producer::create(['name' => 'Estancia La Josefina']);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
 
         $this->openCashRegister($seller);
         Livewire::test(PosDesk::class)
@@ -75,18 +69,19 @@ class CashAuditTest extends TestCase
             ->call('registerPayment');
 
         $this->travel(1)->minutes();
-        $this->sale('C-00000001', 'contado', 'efectivo', 100);
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 100]);
+        $payment = Payment::sole();
 
         $entries = app(CashAuditService::class)->entries(CarbonImmutable::today());
 
         $this->assertSame([
             'R-00000001' => ['Laura', User::ROLE_SELLER],
-            'P-00000001' => ['Diego', User::ROLE_ADMIN],
+            $payment->voucher_number => ['Diego', User::ROLE_ADMIN],
             'C-00000001' => [null, null],
         ], $entries->mapWithKeys(fn (array $entry) => [$entry['voucher'] => [$entry['user'], $entry['user_role']]])->all());
 
         $this->get('/erp/auditoria')->assertOk()
-            ->assertSeeInOrder(['R-00000001', 'Laura', 'Vendedor', 'P-00000001', 'Diego', 'Administrador', 'C-00000001', 'Sin registrar']);
+            ->assertSeeInOrder(['R-00000001', 'Laura', 'Vendedor', $payment->voucher_number, 'Diego', 'Administrador', 'C-00000001', 'Sin registrar']);
     }
 
     public function test_the_screen_ignores_future_and_invalid_dates(): void

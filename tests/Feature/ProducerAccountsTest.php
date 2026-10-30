@@ -49,7 +49,7 @@ class ProducerAccountsTest extends TestCase
 
     public function test_an_account_is_edited_and_the_credit_limit_can_be_removed(): void
     {
-        $producer = Producer::create(['name' => 'Haras San Jorge', 'cuit' => '20-23456789-0', 'credit_limit' => 50000]);
+        $producer = Producer::factory()->withCreditLimit(50000)->create(['name' => 'Haras San Jorge', 'cuit' => '20-23456789-0']);
 
         Livewire::test(AccountsReceivable::class)
             ->call('selectProducer', $producer->id)
@@ -69,7 +69,7 @@ class ProducerAccountsTest extends TestCase
 
     public function test_creating_an_account_validates_the_data(): void
     {
-        Producer::create(['name' => 'Estancia La Josefina', 'cuit' => '20-28489029-4']);
+        Producer::factory()->create(['name' => 'Estancia La Josefina', 'cuit' => '20-28489029-4']);
 
         Livewire::test(AccountsReceivable::class)
             ->call('openCreateModal')
@@ -91,7 +91,7 @@ class ProducerAccountsTest extends TestCase
 
     public function test_an_account_without_balance_is_given_a_baja_and_hidden(): void
     {
-        $producer = Producer::create(['name' => 'Haras San Jorge']);
+        $producer = Producer::factory()->create(['name' => 'Haras San Jorge']);
 
         $component = Livewire::test(AccountsReceivable::class)
             ->call('selectProducer', $producer->id)
@@ -108,7 +108,7 @@ class ProducerAccountsTest extends TestCase
 
     public function test_an_account_with_balance_cannot_be_given_a_baja(): void
     {
-        $producer = Producer::create(['name' => 'Estancia La Josefina', 'balance' => 1500]);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina', 'balance' => 1500]);
 
         Livewire::test(AccountsReceivable::class)
             ->call('selectProducer', $producer->id)
@@ -121,7 +121,7 @@ class ProducerAccountsTest extends TestCase
 
     public function test_the_walk_in_account_cannot_be_given_a_baja(): void
     {
-        $walkIn = Producer::create(['name' => Producer::WALK_IN]);
+        $walkIn = Producer::factory()->create(['name' => Producer::WALK_IN]);
 
         Livewire::test(AccountsReceivable::class)
             ->call('selectProducer', $walkIn->id)
@@ -133,7 +133,7 @@ class ProducerAccountsTest extends TestCase
 
     public function test_a_closed_account_can_be_reactivated(): void
     {
-        $producer = Producer::create(['name' => 'Haras San Jorge', 'is_active' => false]);
+        $producer = Producer::factory()->inactive()->create(['name' => 'Haras San Jorge']);
 
         Livewire::test(AccountsReceivable::class)
             ->set('showInactive', true)
@@ -146,7 +146,7 @@ class ProducerAccountsTest extends TestCase
 
     public function test_a_remito_cannot_be_charged_to_a_closed_account(): void
     {
-        $producer = Producer::create(['name' => 'Haras San Jorge', 'is_active' => false]);
+        $producer = Producer::factory()->inactive()->create(['name' => 'Haras San Jorge']);
         $product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 10, 'price' => 1000]);
 
         try {

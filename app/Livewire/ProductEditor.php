@@ -147,7 +147,13 @@ class ProductEditor extends Component
         $editing = $this->form->isEditing();
 
         if ($editing) {
-            $product = $products->update($this->form->product, $this->form->attributes(), auth()->id());
+            try {
+                $product = $products->update($this->form->product, $this->form->attributes(), auth()->id());
+            } catch (StockException $e) {
+                $this->addError('form.tracks_expiry', $e->getMessage());
+
+                return;
+            }
         } else {
             $product = $products->create(
                 $this->form->attributes(),

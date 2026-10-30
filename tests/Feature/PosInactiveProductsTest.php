@@ -24,7 +24,7 @@ class PosInactiveProductsTest extends TestCase
         $this->openCashRegister();
 
         $this->active = Product::factory()->create(['name' => 'Ivermectina 1% x 50 ml', 'barcode' => '7790000000017', 'stock' => 10]);
-        $this->inactive = Product::factory()->create(['name' => 'Ivermectina Discontinuada x 50 ml', 'barcode' => '7790000000024', 'stock' => 10, 'is_active' => false]);
+        $this->inactive = Product::factory()->inactive()->create(['name' => 'Ivermectina Discontinuada x 50 ml', 'barcode' => '7790000000024', 'stock' => 10]);
     }
 
     public function test_an_inactive_product_picked_from_the_grid_is_not_added_to_the_cart(): void

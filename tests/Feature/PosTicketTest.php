@@ -17,7 +17,7 @@ class PosTicketTest extends TestCase
     {
         $this->openCashRegister();
         $product = Product::factory()->create(['name' => 'Ivermectina 1% x 50 ml', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 10, 'price' => 1500]);
-        $producer = Producer::create(['name' => 'Estancia La Josefina', 'cuit' => '30-71234567-1']);
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina', 'cuit' => '30-71234567-1']);
 
         $html = Livewire::test(PosDesk::class)
             ->assertDontSee('Firma y aclaración')
@@ -48,7 +48,7 @@ class PosTicketTest extends TestCase
     public function test_the_customer_picker_lists_producers_with_their_debt(): void
     {
         $this->openCashRegister();
-        Producer::create(['name' => 'Estancia La Josefina', 'business_name' => 'La Josefina S.A.', 'balance' => 12500]);
+        Producer::factory()->create(['name' => 'Estancia La Josefina', 'business_name' => 'La Josefina S.A.', 'balance' => 12500]);
 
         Livewire::test(PosDesk::class)
             ->assertSee('Consumidor Final')

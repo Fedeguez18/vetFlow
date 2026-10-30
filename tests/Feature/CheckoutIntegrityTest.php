@@ -26,7 +26,7 @@ class CheckoutIntegrityTest extends TestCase
     {
         parent::setUp();
 
-        $this->producer = Producer::create(['name' => 'Estancia La Josefina', 'balance' => 1500]);
+        $this->producer = Producer::factory()->create(['name' => 'Estancia La Josefina', 'balance' => 1500]);
     }
 
     protected function checkout(): CheckoutService
@@ -93,7 +93,7 @@ class CheckoutIntegrityTest extends TestCase
 
     public function test_an_inactive_product_cannot_be_sold_and_keeps_its_stock(): void
     {
-        $product = Product::factory()->create(['is_active' => false, 'stock' => 20]);
+        $product = Product::factory()->inactive()->create(['stock' => 20]);
 
         $message = $this->failedCheckoutMessage([['product_id' => $product->id, 'quantity' => 1]]);
 

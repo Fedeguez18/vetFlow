@@ -29,7 +29,7 @@ class InventoryKpiTest extends TestCase
         Product::factory()->create(['stock' => 3]);
         Product::factory()->create(['stock' => 5]);
         Product::factory()->create(['stock' => 6, 'min_stock' => 10]);
-        Product::factory()->create(['stock' => 1, 'is_active' => false]);
+        Product::factory()->inactive()->create(['stock' => 1]);
 
         $tracked = Product::factory()->tracksExpiry()->create();
         $tracked->lots()->createMany([
@@ -42,16 +42,15 @@ class InventoryKpiTest extends TestCase
             ['lot_number' => 'G', 'expiration_date' => today()->addDays(20), 'quantity' => 0],   // empty: out
         ]);
         $tracked->syncStockFromLots();
-        Product::factory()->tracksExpiry()->create(['is_active' => false])
+        Product::factory()->tracksExpiry()->inactive()->create()
             ->lots()->create(['lot_number' => 'X', 'expiration_date' => today()->addDays(5), 'quantity' => 5]); // inactive: out
 
-        $producer = Producer::create(['name' => 'Estancia']);
-        Sale::create(['voucher_number' => 'C-1', 'type' => 'contado', 'payment_method' => 'efectivo', 'total' => 1000, 'paid' => 1000, 'status' => 'pagada']);
-        Sale::create(['voucher_number' => 'C-2', 'type' => 'contado', 'payment_method' => 'qr', 'total' => 2500.50, 'paid' => 2500.50, 'status' => 'pagada']);
-        Sale::create(['voucher_number' => 'C-3', 'type' => 'contado', 'payment_method' => 'tarjeta', 'total' => 499.50, 'paid' => 499.50, 'status' => 'pagada']);
-        Sale::create(['voucher_number' => 'R-4', 'type' => 'remito', 'payment_method' => 'cuenta_corriente', 'producer_id' => $producer->id, 'total' => 9000, 'status' => 'pendiente']);
-        Sale::create(['voucher_number' => 'C-5', 'type' => 'contado', 'payment_method' => 'efectivo', 'total' => 7777, 'paid' => 7777, 'status' => 'pagada'])
-            ->forceFill(['created_at' => now()->subDay()])->save();
+        $producer = Producer::factory()->create(['name' => 'Estancia']);
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 1000]);
+        Sale::factory()->create(['payment_method' => 'qr', 'total' => 2500.50]);
+        Sale::factory()->create(['payment_method' => 'tarjeta', 'total' => 499.50]);
+        Sale::factory()->remito()->for($producer)->create(['total' => 9000]);
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 7777, 'created_at' => now()->subDay()]);
 
         $kpis = Livewire::test(InventoryCatalog::class)->instance()->kpis;
 

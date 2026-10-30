@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Exceptions\CreditLimitException;
 use App\Livewire\Erp\AccountsReceivable;
 use App\Livewire\Pos\PosDesk;
+use App\Models\Payment;
 use App\Models\Producer;
 use App\Models\Product;
 use App\Models\Sale;
@@ -32,7 +33,7 @@ class CurrentAccountCycleTest extends TestCase
         parent::setUp();
 
         $this->actingAs(User::factory()->admin()->create());
-        $this->producer = Producer::create(['name' => 'Estancia La Josefina']);
+        $this->producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
         $this->product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 100, 'price' => 1000]);
     }
 
@@ -154,8 +155,7 @@ class CurrentAccountCycleTest extends TestCase
     {
         $old = $this->remito(1);
         $old->forceFill(['created_at' => now()->subMonths(2)])->save();
-        $this->producer->payments()->create(['amount' => 400, 'payment_method' => 'efectivo'])
-            ->forceFill(['created_at' => now()->subMonths(2)->addDay()])->save();
+        Payment::factory()->for($this->producer)->create(['amount' => 400, 'payment_method' => 'efectivo', 'created_at' => now()->subMonths(2)->addDay()]);
         $this->producer->update(['balance' => 600]);
 
         $this->remito(2);

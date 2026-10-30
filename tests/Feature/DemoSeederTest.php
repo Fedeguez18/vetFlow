@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
 use App\Support\Pricing;
+use Database\Seeders\ProductSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -22,7 +23,7 @@ class DemoSeederTest extends TestCase
         $this->seed();
 
         $this->assertTrue(User::where('email', 'admin@demo.test')->exists());
-        $this->assertSame(128, Product::count());
+        $this->assertSame(ProductSeeder::TOTAL, Product::count());
         $this->assertSame(5, Product::where('stock', '<=', 5)->count());
         $this->assertSame(1, Product::where('stock', 0)->count());
         $this->assertGreaterThanOrEqual(3, Product::where('stock', '>', 5)->whereColumn('stock', '<', 'min_stock')->count());

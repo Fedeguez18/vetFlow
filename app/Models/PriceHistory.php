@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
+use Database\Factories\PriceHistoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['product_id', 'cost_price', 'markup_percent', 'vat_percent', 'price', 'user_id'])]
 class PriceHistory extends Model
 {
+    /** @use HasFactory<PriceHistoryFactory> */
+    use HasFactory;
+
     /**
      * Get the attributes that should be cast.
      *

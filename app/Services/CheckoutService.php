@@ -87,7 +87,8 @@ class CheckoutService
 
             if ($producer && $producer->exceedsCreditLimit($total) && ! ($checkoutData['allow_over_limit'] ?? false)) {
                 throw new CreditLimitException('El remito de '.Pricing::moneyWithCents($total)." supera el límite de crédito de {$producer->name}: "
-                    .'límite '.Pricing::moneyWithCents($producer->credit_limit).', saldo actual '.Pricing::moneyWithCents($producer->balance).'.');
+                    .'límite '.Pricing::moneyWithCents($producer->credit_limit).', '
+                    .($producer->hasCreditBalance() ? 'saldo a favor '.Pricing::moneyWithCents(-$producer->balance) : 'saldo actual '.Pricing::moneyWithCents($producer->balance)).'.');
             }
 
             $paid = $type === 'contado' ? $total : $this->creditToApply($producer, $total);
@@ -178,9 +179,10 @@ class CheckoutService
     /**
      * Take the next correlative number of the type's own counter. It must run inside the checkout
      * transaction: the row lock serializes concurrent sales and a failed sale rolls the counter
-     * back, so numbers never repeat nor skip.
+     * back, so numbers never repeat nor skip. SaleFactory uses it too, so test data never takes a
+     * number that a later checkout would assign again.
      */
-    protected function reserveVoucherNumber(string $type): string
+    public function reserveVoucherNumber(string $type): string
     {
         $prefix = $this->voucherPrefix($type);
 
