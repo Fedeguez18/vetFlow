@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Pos\PosDesk;
 use App\Models\Product;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -24,6 +25,12 @@ class PagesSmokeTest extends TestCase
             ->assertSeeInOrder(['Complejo Vitamínico ADE 500 ml', 'Vencido', 'Vacuna Anticarbunclosa Bovina', 'Crítico: 20 días', 'Ivermectina 3,15% Frasco 500 ml', 'Atención: 45 días']);
         $this->get('/erp/cuentas-corrientes')->assertOk()->assertSee('Estancia La Josefina');
         $this->get('/erp/auditoria')->assertOk()->assertSee('Total cobrado hoy');
+        $this->get('/erp/rubros')->assertOk();
+        $this->get('/erp/proveedores')->assertOk();
+
+        foreach (Supplier::all() as $supplier) {
+            $this->get(route('erp.suppliers.show', $supplier))->assertOk()->assertSee($supplier->business_name);
+        }
 
         $this->openCashRegister($admin);
         $this->get('/pos')->assertOk()->assertSee('Biológicos/Vacunas')->assertSee('Diego')->assertSee('Caja abierta · Administrador')

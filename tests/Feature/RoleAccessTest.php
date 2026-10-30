@@ -3,8 +3,9 @@
 namespace Tests\Feature;
 
 use App\Livewire\Erp\AccountsReceivable;
-use App\Livewire\Erp\CategoriesSuppliers;
+use App\Livewire\Erp\Categories;
 use App\Livewire\Erp\InventoryCatalog;
+use App\Livewire\Erp\Suppliers;
 use App\Livewire\ProductEditor;
 use App\Models\Category;
 use App\Models\Payment;
@@ -33,7 +34,8 @@ class RoleAccessTest extends TestCase
             'cuentas corrientes' => ['/erp/cuentas-corrientes'],
             'auditoría' => ['/erp/auditoria'],
             'exportar auditoría' => ['/erp/auditoria/exportar'],
-            'rubros y proveedores' => ['/erp/rubros-proveedores'],
+            'rubros' => ['/erp/rubros'],
+            'proveedores' => ['/erp/proveedores'],
         ];
     }
 
@@ -106,8 +108,8 @@ class RoleAccessTest extends TestCase
         $supplier = Supplier::factory()->create();
         $this->actingAs($admin);
 
-        $categories = Livewire::test(CategoriesSuppliers::class);
-        $suppliers = Livewire::test(CategoriesSuppliers::class);
+        $categories = Livewire::test(Categories::class);
+        $suppliers = Livewire::test(Suppliers::class);
 
         $admin->update(['role' => User::ROLE_SELLER]);
 

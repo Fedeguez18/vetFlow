@@ -148,7 +148,10 @@ class ProductForm extends Form
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'category_id' => ['required', 'integer', 'exists:categories,id'],
-            'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
+            // Suppliers given a baja can't be assigned, but a product can keep the one it already has.
+            'supplier_id' => ['nullable', 'integer', Rule::exists('suppliers', 'id')->where(fn ($query) => $query
+                ->where('is_active', true)
+                ->when($this->product?->supplier_id, fn ($query, $current) => $query->orWhere('id', $current)))],
             'cost_price' => ['required', 'numeric', 'min:0'],
             // A negative markup is allowed: the final price below cost only triggers a warning.
             'markup_percent' => ['required', 'numeric', 'min:-100'],
@@ -175,6 +178,7 @@ class ProductForm extends Form
             'sku.unique' => 'Ya existe un artículo con ese código.',
             'sku.required' => 'El código es obligatorio.',
             'category_id.required' => 'Elegí el rubro.',
+            'supplier_id.exists' => 'Ese proveedor está dado de baja.',
             'price.required' => 'El precio es obligatorio.',
             'price.gt' => 'El precio tiene que ser mayor a cero.',
             'name.required' => 'El nombre es obligatorio.',

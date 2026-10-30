@@ -21,7 +21,8 @@
             ['label' => 'Inventario & Lotes', 'route' => 'erp.inventory'],
             ['label' => 'Cuentas Corrientes & Remitos', 'route' => 'erp.accounts'],
             ['label' => 'Auditoría & Caja', 'route' => 'erp.audit'],
-            ['label' => 'Rubros & Proveedores', 'route' => 'erp.catalogs'],
+            ['label' => 'Proveedores', 'route' => 'erp.suppliers'],
+            ['label' => 'Rubros', 'route' => 'erp.categories'],
             ['label' => 'Usuarios', 'route' => 'erp.users'],
         ] : [];
     @endphp

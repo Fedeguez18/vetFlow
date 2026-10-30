@@ -100,9 +100,10 @@
                                         <select id="pf-supplier" wire:model="form.supplier_id" class="{{ $input }}">
                                             <option value="">Sin proveedor</option>
                                             @foreach ($this->suppliers as $supplier)
-                                                <option value="{{ $supplier->id }}">{{ $supplier->business_name }}</option>
+                                                <option value="{{ $supplier->id }}">{{ $supplier->business_name }}{{ $supplier->is_active ? '' : ' (dado de baja)' }}</option>
                                             @endforeach
                                         </select>
+                                        @error('form.supplier_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
                                 </div>
                             </section>

@@ -9,6 +9,7 @@ use App\Models\Supplier;
 use App\Services\StockService;
 use App\Support\Pricing;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -44,7 +45,7 @@ class RestockModal extends Component
         $this->reset('quantity', 'lotNumber', 'expirationDate', 'newCost', 'reason');
         $this->resetValidation();
         $this->productId = $product->id;
-        $this->supplierId = $product->supplier_id;
+        $this->supplierId = $product->supplier?->is_active ? $product->supplier_id : null;
         unset($this->product, $this->existingLots);
         $this->open = true;
     }
@@ -82,7 +83,7 @@ class RestockModal extends Component
                     $fail('El precio de compra tiene que ser un número mayor o igual a cero.');
                 }
             }],
-            'supplierId' => ['nullable', 'integer', 'exists:suppliers,id'],
+            'supplierId' => ['nullable', 'integer', Rule::exists('suppliers', 'id')->where('is_active', true)],
             'reason' => ['nullable', 'string', 'max:255'],
         ], [
             'quantity.required' => 'Ingresá la cantidad.',
@@ -91,6 +92,7 @@ class RestockModal extends Component
             'lotNumber.required' => 'El número de lote es obligatorio para este producto.',
             'expirationDate.required' => 'La fecha de vencimiento es obligatoria para este producto.',
             'expirationDate.date' => 'Fecha inválida.',
+            'supplierId.exists' => 'Ese proveedor está dado de baja.',
         ]);
 
         try {
@@ -130,7 +132,7 @@ class RestockModal extends Component
     #[Computed]
     public function suppliers(): Collection
     {
-        return Supplier::orderBy('business_name')->get(['id', 'business_name']);
+        return Supplier::active()->orderBy('business_name')->get(['id', 'business_name']);
     }
 
     /**

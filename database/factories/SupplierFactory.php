@@ -22,6 +22,15 @@ class SupplierFactory extends Factory
             'cuit' => '30-'.fake()->unique()->numerify('########').'-'.fake()->randomDigit(),
             'phone' => fake()->numerify('(0358) 46#-####'),
             'email' => fake()->unique()->safeEmail(),
+            'is_active' => true,
         ];
+    }
+
+    /**
+     * A supplier that was given a baja.
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn () => ['is_active' => false]);
     }
 }

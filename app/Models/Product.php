@@ -172,6 +172,14 @@ class Product extends Model
     }
 
     /**
+     * Units to order so the stock reaches twice the minimum, and at least gets out of critical.
+     */
+    public function suggestedRestock(): int
+    {
+        return max(0, max(2 * $this->min_stock, self::CRITICAL_STOCK + 1) - $this->stock);
+    }
+
+    /**
      * Units that can be sold: every unit for products without expiry, only the non-expired lots otherwise.
      * Uses the aggregate loaded by withSellableStock() when present.
      */
@@ -214,6 +222,18 @@ class Product extends Model
         if ($this->tracks_expiry) {
             $this->update(['stock' => (int) $this->lots()->sum('quantity')]);
         }
+    }
+
+    /**
+     * Products whose stock_status is not "ok": critical or under the minimum.
+     *
+     * @param  Builder<Product>  $query
+     */
+    public function scopeLowStock(Builder $query): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->where('stock', '<=', self::CRITICAL_STOCK)
+            ->orWhereColumn('stock', '<', 'min_stock'));
     }
 
     /**

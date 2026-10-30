@@ -11,7 +11,7 @@ class SupplierService
     /**
      * Create a supplier, or update it when one is given.
      *
-     * @param  array{business_name: string, cuit: ?string, phone: ?string, email: ?string}  $attributes
+     * @param  array<string, ?string>  $attributes  business_name plus the optional contact, tax and payment fields.
      */
     public function save(array $attributes, ?Supplier $supplier = null): Supplier
     {
@@ -32,14 +32,22 @@ class SupplierService
         $products = $supplier->products()->count();
 
         if ($products > 0) {
-            throw new CatalogException("No se puede eliminar «{$supplier->business_name}»: tiene {$products} productos asignados.");
+            throw new CatalogException("No se puede eliminar «{$supplier->business_name}»: tiene {$products} productos asignados. Podés darlo de baja para que no aparezca más al cargar artículos.");
         }
 
         if (StockMovement::where('supplier_id', $supplier->id)->exists()) {
-            throw new CatalogException("No se puede eliminar «{$supplier->business_name}»: figura en el historial de reposiciones.");
+            throw new CatalogException("No se puede eliminar «{$supplier->business_name}»: figura en el historial de reposiciones. Podés darlo de baja para que no aparezca más al cargar artículos.");
         }
 
         $supplier->delete();
+    }
+
+    /**
+     * Baja lógica (or reactivation): products and restock history keep pointing to the supplier.
+     */
+    public function setActive(Supplier $supplier, bool $active): void
+    {
+        $supplier->update(['is_active' => $active]);
     }
 
     /**

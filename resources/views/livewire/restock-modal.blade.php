@@ -65,6 +65,7 @@
                                 <option value="{{ $supplier->id }}">{{ $supplier->business_name }}</option>
                             @endforeach
                         </select>
+                        @error('supplierId') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
 

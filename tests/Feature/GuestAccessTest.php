@@ -18,7 +18,8 @@ class GuestAccessTest extends TestCase
         return [
             'cuentas corrientes' => ['erp.accounts'],
             'auditoría' => ['erp.audit'],
-            'rubros y proveedores' => ['erp.catalogs'],
+            'rubros' => ['erp.categories'],
+            'proveedores' => ['erp.suppliers'],
             'exportación CSV del inventario' => ['erp.inventory.export'],
             'exportación CSV de la auditoría' => ['erp.audit.export'],
         ];

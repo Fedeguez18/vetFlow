@@ -218,10 +218,18 @@ class ProductEditor extends Component
         return Category::orderBy('name')->get(['id', 'name']);
     }
 
+    /**
+     * Active suppliers, plus the one the product already has even if it was given a baja.
+     */
     #[Computed]
     public function suppliers(): Collection
     {
-        return Supplier::orderBy('business_name')->get(['id', 'business_name']);
+        $current = $this->form->product?->supplier_id;
+
+        return Supplier::query()
+            ->where(fn ($query) => $query->active()->when($current, fn ($query) => $query->orWhere('id', $current)))
+            ->orderBy('business_name')
+            ->get(['id', 'business_name', 'is_active']);
     }
 
     /**

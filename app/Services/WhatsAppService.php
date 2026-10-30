@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Producer;
+use App\Models\Product;
 use App\Models\Sale;
+use App\Models\Supplier;
 use App\Support\Pricing;
 use Illuminate\Support\Collection;
 
@@ -42,6 +44,40 @@ class WhatsAppService
         $lines[] = 'Quedamos a disposición por cualquier consulta. ¡Muchas gracias!';
 
         return 'https://wa.me/'.($this->internationalPhone($producer->phone) ?? '').'?text='.rawurlencode(implode("\n", $lines));
+    }
+
+    /**
+     * wa.me link to the supplier's phone with the suggested order when there are products to restock.
+     *
+     * @param  Collection<int, Product>  $lowStock
+     */
+    public function supplierContactUrl(Supplier $supplier, Collection $lowStock): string
+    {
+        return 'https://wa.me/'.($this->internationalPhone($supplier->phone) ?? '').'?text='.rawurlencode($this->supplierOrderText($supplier, $lowStock));
+    }
+
+    /**
+     * Message for the supplier (addressed to the contact when loaded) listing the suggested quantity of
+     * each product to restock. Also used by the "Copiar pedido" button.
+     *
+     * @param  Collection<int, Product>  $lowStock
+     */
+    public function supplierOrderText(Supplier $supplier, Collection $lowStock): string
+    {
+        $lines = ['Hola '.($supplier->contact_name ?: $supplier->business_name).', les escribimos de la veterinaria.'];
+
+        if ($lowStock->isNotEmpty()) {
+            $lines[] = 'Queremos hacer el siguiente pedido:';
+
+            foreach ($lowStock as $product) {
+                $lines[] = "• {$product->suggestedRestock()} u. {$product->name}";
+            }
+
+            $lines[] = '';
+            $lines[] = '¡Muchas gracias!';
+        }
+
+        return implode("\n", $lines);
     }
 
     /**
