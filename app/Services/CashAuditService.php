@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Throwable;
 
 class CashAuditService
 {
@@ -25,6 +26,20 @@ class CashAuditService
      * Methods that land in the bank account.
      */
     public const BANK_METHODS = ['qr', 'transferencia'];
+
+    /**
+     * The audited day: the given Y-m-d date, or today when it is empty, invalid or in the future.
+     */
+    public function day(string $date): CarbonImmutable
+    {
+        try {
+            $day = $date !== '' ? CarbonImmutable::createFromFormat('!Y-m-d', $date) : null;
+        } catch (Throwable) {
+            $day = null;
+        }
+
+        return $day && $day->lte(today()) ? $day : CarbonImmutable::today();
+    }
 
     /**
      * Every sale and account payment of the day, in chronological order.

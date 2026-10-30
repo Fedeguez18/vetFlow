@@ -15,7 +15,6 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
-use Throwable;
 
 #[Layout('layouts::erp')]
 #[Title('Auditoría & Caja')]
@@ -32,13 +31,7 @@ class DailyAudit extends Component
     #[Computed]
     public function day(): CarbonImmutable
     {
-        try {
-            $day = $this->date !== '' ? CarbonImmutable::createFromFormat('!Y-m-d', $this->date) : null;
-        } catch (Throwable) {
-            $day = null;
-        }
-
-        return $day && $day->lte(today()) ? $day : CarbonImmutable::today();
+        return app(CashAuditService::class)->day($this->date);
     }
 
     #[Computed]

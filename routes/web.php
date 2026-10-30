@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountPdfController;
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\CashAuditExportController;
 use App\Http\Controllers\InventoryExportController;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
@@ -60,6 +61,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/remitos/{sale}/pdf', [AccountPdfController::class, 'remito'])->name('remitos.pdf');
         Route::get('/pagos/{payment}/recibo.pdf', [AccountPdfController::class, 'receipt'])->name('payments.receipt-pdf');
         Route::get('/auditoria', DailyAudit::class)->name('audit');
+        Route::get('/auditoria/exportar', CashAuditExportController::class)->name('audit.export');
         Route::get('/rubros-proveedores', CategoriesSuppliers::class)->name('catalogs');
         Route::get('/usuarios', UserManagement::class)->name('users');
     });

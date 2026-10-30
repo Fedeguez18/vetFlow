@@ -20,6 +20,7 @@ class GuestAccessTest extends TestCase
             'auditoría' => ['erp.audit'],
             'rubros y proveedores' => ['erp.catalogs'],
             'exportación CSV del inventario' => ['erp.inventory.export'],
+            'exportación CSV de la auditoría' => ['erp.audit.export'],
         ];
     }
 

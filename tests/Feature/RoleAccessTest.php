@@ -32,6 +32,7 @@ class RoleAccessTest extends TestCase
             'exportar inventario' => ['/erp/inventario/exportar'],
             'cuentas corrientes' => ['/erp/cuentas-corrientes'],
             'auditoría' => ['/erp/auditoria'],
+            'exportar auditoría' => ['/erp/auditoria/exportar'],
             'rubros y proveedores' => ['/erp/rubros-proveedores'],
         ];
     }

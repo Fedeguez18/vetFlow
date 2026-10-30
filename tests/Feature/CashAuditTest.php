@@ -84,6 +84,36 @@ class CashAuditTest extends TestCase
             ->assertSeeInOrder(['R-00000001', 'Laura', 'Vendedor', $payment->voucher_number, 'Diego', 'Administrador', 'C-00000001', 'Sin registrar']);
     }
 
+    public function test_the_day_exports_to_csv_with_the_balance_and_the_movements(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
+        $day = today()->subDays(2);
+        $at = fn (int $hour) => $day->copy()->setTime($hour, 0);
+
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 1000, 'created_at' => $at(9)]);
+        Sale::factory()->create(['payment_method' => 'qr', 'total' => 2500.50, 'created_at' => $at(10)]);
+        Sale::factory()->remito()->for($producer)->create(['total' => 9000, 'created_at' => $at(11)]);
+        $payment = Payment::factory()->for($producer)->create(['amount' => 300, 'payment_method' => 'transferencia', 'created_at' => $at(12)]);
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 7777, 'created_at' => today()]);
+
+        $response = $this->get(route('erp.audit.export', ['date' => $day->toDateString()]))->assertOk();
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('arqueo-'.$day->toDateString().'.csv', $response->headers->get('Content-Disposition'));
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
+        $this->assertStringContainsString("\"Total cobrado\";3800,50\n", $csv);
+        $this->assertStringContainsString("\"Dinero en efectivo\";1000,00\n", $csv);
+        $this->assertStringContainsString("\"QR / Transferencia\";2800,50\n", $csv);
+        $this->assertStringContainsString("\"Tickets contado\";3500,50;2\n", $csv);
+        $this->assertStringContainsString('R-00000001;Remito;"Estancia La Josefina";"Cuenta Corriente";"Sin registrar";;9000,00;0,00', $csv);
+        $this->assertStringContainsString($payment->voucher_number.';"Cobro Cta. Cte."', $csv);
+        $this->assertStringNotContainsString('7777', $csv);
+
+        $this->withoutVite()->get('/erp/auditoria?date='.$day->toDateString())
+            ->assertSee(route('erp.audit.export', ['date' => $day->toDateString()]), false);
+    }
+
     public function test_the_screen_ignores_future_and_invalid_dates(): void
     {
         $this->actingAs(User::factory()->admin()->create());
