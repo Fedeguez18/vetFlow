@@ -32,6 +32,7 @@ class CurrentAccountCycleTest extends TestCase
     {
         parent::setUp();
 
+        $this->travelTo(now()->setDate(2026, 10, 20)->setTime(12, 0));
         $this->actingAs(User::factory()->admin()->create());
         $this->producer = Producer::factory()->create(['name' => 'Estancia La Josefina']);
         $this->product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 100, 'price' => 1000]);

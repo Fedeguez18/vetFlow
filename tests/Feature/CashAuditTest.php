@@ -20,6 +20,13 @@ class CashAuditTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->travelTo(now()->setDate(2026, 10, 20)->setTime(12, 0));
+    }
+
     public function test_the_summary_splits_the_day_by_method(): void
     {
         $producer = Producer::factory()->create(['name' => 'Estancia La Josefina', 'balance' => 9000]);

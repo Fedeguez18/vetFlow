@@ -25,6 +25,7 @@ class AccountPdfTest extends TestCase
     {
         parent::setUp();
 
+        $this->travelTo(now()->setDate(2026, 10, 20)->setTime(12, 0));
         $this->producer = Producer::factory()->create(['name' => 'Marome SA', 'cuit' => '30-50937538-7']);
         $taxed = Product::factory()->create(['sku' => 'FLOK500', 'name' => 'Flok x 500 cc', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 50, 'price' => 1210, 'vat_percent' => 21]);
         $exempt = Product::factory()->create(['sku' => 'HON-EQ', 'name' => 'Honorarios Equino', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 50, 'price' => 500, 'vat_percent' => 0]);
