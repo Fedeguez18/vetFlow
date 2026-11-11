@@ -42,13 +42,13 @@ class CashAuditService
     }
 
     /**
-     * Every sale and account payment of the day, in chronological order.
+     * Every sale and account payment from the start of $from to the end of $to (or of $from alone), in chronological order.
      *
      * @return Collection<int, array{key: string, time: CarbonImmutable, kind: string, voucher: string, client: string, method: ?string, amount: float, collected: float, user: ?string, user_role: ?string}>
      */
-    public function entries(CarbonImmutable $day): Collection
+    public function entries(CarbonImmutable $from, ?CarbonImmutable $to = null): Collection
     {
-        $range = [$day->startOfDay(), $day->endOfDay()];
+        $range = [$from->startOfDay(), ($to ?? $from)->endOfDay()];
 
         $sales = Sale::query()->with(['producer', 'user'])->whereBetween('created_at', $range)->get()
             ->map(fn (Sale $sale) => [

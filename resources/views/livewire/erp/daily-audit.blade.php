@@ -170,14 +170,30 @@
 
     {{-- Chronological audit --}}
     <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-            <h2 class="font-semibold text-slate-800">Transacciones del día</h2>
-            <span class="text-xs text-slate-500">{{ $this->entries->count() }} movimientos</span>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <div>
+                <h2 class="font-semibold text-slate-800">{{ $this->periodLabel }}</h2>
+                <span class="text-xs text-slate-500">{{ $this->transactions->count() }} movimientos</span>
+            </div>
+            <div class="inline-flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Período de las transacciones">
+                @foreach (\App\Livewire\Erp\DailyAudit::PERIODS as $value => $label)
+                    <button
+                        type="button"
+                        wire:click="$set('period', '{{ $value }}')"
+                        aria-pressed="{{ $period === $value ? 'true' : 'false' }}"
+                        @class([
+                            'rounded-lg px-3 py-1.5 text-xs font-semibold',
+                            'bg-white text-slate-900 shadow-sm' => $period === $value,
+                            'text-slate-500 hover:text-slate-800' => $period !== $value,
+                        ])
+                    >{{ $label }}</button>
+                @endforeach
+            </div>
         </div>
         <table class="w-full text-sm">
             <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
-                    <th class="px-4 py-3">Hora</th>
+                    <th class="px-4 py-3">{{ $period === 'dia' ? 'Hora' : 'Fecha' }}</th>
                     <th class="px-4 py-3">Comprobante</th>
                     <th class="px-4 py-3">Cliente</th>
                     <th class="px-4 py-3">Método de pago</th>
@@ -186,9 +202,9 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-                @forelse ($this->entries as $entry)
+                @forelse ($this->transactions as $entry)
                     <tr wire:key="{{ $entry['key'] }}" class="hover:bg-slate-50">
-                        <td class="whitespace-nowrap px-4 py-3 font-mono text-slate-600">{{ $entry['time']->format('H:i:s') }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 font-mono text-slate-600">{{ $entry['time']->format($period === 'dia' ? 'H:i:s' : 'd/m H:i') }}</td>
                         <td class="whitespace-nowrap px-4 py-3">
                             <span class="font-mono font-medium text-slate-800">{{ $entry['voucher'] }}</span>
                             <span class="ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $kinds[$entry['kind']][1] }}">{{ $kinds[$entry['kind']][0] }}</span>
@@ -220,15 +236,15 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-12 text-center text-slate-500">No hubo movimientos en el día.</td>
+                        <td colspan="6" class="px-4 py-12 text-center text-slate-500">No hubo movimientos en {{ ['dia' => 'el día', 'semana' => 'la semana', 'mes' => 'el mes'][$period] ?? 'el día' }}.</td>
                     </tr>
                 @endforelse
             </tbody>
-            @if ($this->entries->isNotEmpty())
+            @if ($this->transactions->isNotEmpty())
                 <tfoot class="border-t border-slate-200 bg-slate-50">
                     <tr>
                         <td colspan="5" class="px-4 py-3 text-right font-medium text-slate-600">Total cobrado</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-900">{{ $money($summary['collected']) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-900">{{ $money($this->transactionsSummary['collected']) }}</td>
                     </tr>
                 </tfoot>
             @endif

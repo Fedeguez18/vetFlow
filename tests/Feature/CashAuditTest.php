@@ -121,6 +121,33 @@ class CashAuditTest extends TestCase
             ->assertSee(route('erp.audit.export', ['date' => $day->toDateString()]), false);
     }
 
+    public function test_the_transaction_log_can_span_the_week_or_the_month(): void
+    {
+        $this->withoutVite();
+        $this->actingAs(User::factory()->admin()->create());
+        $this->travelTo(CarbonImmutable::parse('2026-11-11 15:00'));
+
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 100, 'created_at' => '2026-11-11 09:00']);
+        Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 200, 'created_at' => '2026-11-09 09:00']);
+        Sale::factory()->create(['payment_method' => 'qr', 'total' => 400, 'created_at' => '2026-11-02 09:00']);
+        Sale::factory()->create(['payment_method' => 'qr', 'total' => 800, 'created_at' => '2026-10-31 09:00']);
+
+        $component = Livewire::test(DailyAudit::class);
+        $collected = fn () => [$component->instance()->transactions->count(), $component->instance()->transactionsSummary['collected']];
+
+        $this->assertSame([1, 100.0], $collected());
+
+        $component->call('$set', 'period', 'semana')->assertSee('Transacciones de la semana del 09/11 al 15/11/2026');
+        $this->assertSame([2, 300.0], $collected());
+
+        $component->call('$set', 'period', 'mes')->assertSee('Transacciones de noviembre de 2026');
+        $this->assertSame([3, 700.0], $collected());
+        $this->assertSame(100.0, $component->instance()->summary['collected']);
+
+        $component->set('period', 'cualquiera');
+        $this->assertSame('dia', $component->get('period'));
+    }
+
     public function test_the_screen_ignores_future_and_invalid_dates(): void
     {
         $this->actingAs(User::factory()->admin()->create());
