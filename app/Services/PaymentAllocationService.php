@@ -35,7 +35,20 @@ class PaymentAllocationService
     }
 
     /**
-     * @return array{payments: array<int, array<string, mixed>>, sales: array<int, Collection<int, array{payment: Payment, applied: float}>>}
+     * Position of each movement ("remito-1", "pago-3", "nota_credito-2") when the account is read by
+     * what settled what: every remito right above the payment or credit note that put the most money
+     * into it (or settled it), remitos paid with saldo a favor where they were issued, and unpaid
+     * remitos last, by date.
+     *
+     * @return array<string, int>
+     */
+    public function movementOrder(Producer $producer): array
+    {
+        return array_flip($this->replay($producer)['order']);
+    }
+
+    /**
+     * @return array{payments: array<int, array<string, mixed>>, sales: array<int, Collection<int, array{payment: Payment, applied: float}>>, order: list<string>}
      */
     protected function replay(Producer $producer): array
     {
@@ -51,6 +64,9 @@ class PaymentAllocationService
         $balance = 0;
         $payments = [];
         $sales = [];
+        $order = [];
+        $waiting = [];
+        $kinds = ['remito', 'pago', 'nota_credito'];
 
         foreach ($events as $event) {
             if ($event['order'] === 0) {
@@ -64,12 +80,19 @@ class PaymentAllocationService
                     $open[] = ['sale' => $sale, 'cents' => $event['cents']];
                 }
 
+                if ($paid[$sale->id] > 0) {
+                    $order[] = "remito-{$sale->id}";
+                } else {
+                    $waiting[$sale->id] = "remito-{$sale->id}";
+                }
+
                 continue;
             }
 
             $balanceBefore = $balance;
             $left = $event['cents'];
             $allocations = [];
+            $touched = [];
 
             foreach ($open as $index => $remito) {
                 if ($left <= 0) {
@@ -81,6 +104,7 @@ class PaymentAllocationService
                 $paid[$saleId] += $applied;
                 $left -= $applied;
                 $allocations[] = ['sale' => $remito['sale'], 'applied' => $this->pesos($applied), 'pending' => $this->pesos($remito['cents'] - $paid[$saleId])];
+                $touched[] = ['sale_id' => $saleId, 'cents' => $applied, 'settled' => $paid[$saleId] >= $remito['cents']];
 
                 if ($event['order'] === 1) {
                     $sales[$saleId]->push(['payment' => $event['model'], 'applied' => $this->pesos($applied)]);
@@ -91,6 +115,18 @@ class PaymentAllocationService
                 }
             }
 
+            // A remito goes above the payment that put the most money into it, or the one that settled it:
+            // the cents left over from paying one remito don't drag the next one up.
+            $main = collect($touched)->sortByDesc('cents')->first()['sale_id'] ?? null;
+
+            foreach ($touched as $touch) {
+                if (isset($waiting[$touch['sale_id']]) && ($touch['sale_id'] === $main || $touch['settled'])) {
+                    $order[] = $waiting[$touch['sale_id']];
+                    unset($waiting[$touch['sale_id']]);
+                }
+            }
+
+            $order[] = $kinds[$event['order']].'-'.$event['id'];
             $open = array_values($open);
             $credit += $left;
             $balance -= $event['cents'];
@@ -105,7 +141,7 @@ class PaymentAllocationService
             }
         }
 
-        return ['payments' => $payments, 'sales' => $sales];
+        return ['payments' => $payments, 'sales' => $sales, 'order' => [...$order, ...array_values($waiting)]];
     }
 
     protected function cents(mixed $amount): int

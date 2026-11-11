@@ -12,14 +12,12 @@ use Illuminate\Support\Collection;
 
 class AccountStatementService
 {
-    /**
-     * Order of movements registered at the same second: the charge first, then what lowers it.
-     */
-    protected const KIND_ORDER = ['remito' => 0, 'pago' => 1, 'nota_credito' => 2];
+    public function __construct(protected PaymentAllocationService $allocations) {}
 
     /**
      * Account statement of a producer: remitos go to the Debe, payments and credit notes to the
      * Haber, with the running balance. The opening balance sums every movement before $from.
+     * Rows follow what settled what, not the date: each paid remito sits right above its payment.
      *
      * @return array{opening: float, rows: Collection<int, array{key: string, id: int, time: CarbonImmutable, kind: string, voucher: string, detail: ?string, debit: float, credit: float, balance: float}>, debit: float, credit: float, closing: float}
      */
@@ -49,9 +47,10 @@ class AccountStatementService
             ->map(fn (CreditNote $note) => $this->row('nota_credito', $note->id, $note->created_at, $note->voucher_number, $note->reason, 0.0, (float) $note->amount));
 
         $cents = (int) round($opening * 100);
+        $order = $this->allocations->movementOrder($producer);
 
         $rows = $remitos->concat($payments)->concat($creditNotes)
-            ->sortBy(fn (array $row) => [$row['time']->getTimestamp(), self::KIND_ORDER[$row['kind']], $row['id']])
+            ->sortBy(fn (array $row) => [$order[$row['key']] ?? PHP_INT_MAX, $row['time']->getTimestamp(), $row['id']])
             ->values()
             ->map(function (array $row) use (&$cents) {
                 $cents += (int) round($row['debit'] * 100) - (int) round($row['credit'] * 100);

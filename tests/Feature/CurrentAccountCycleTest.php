@@ -177,6 +177,50 @@ class CurrentAccountCycleTest extends TestCase
         $this->assertSame([0.0, 5, -500.0], [$all['opening'], $all['rows']->count(), $all['closing']]);
     }
 
+    public function test_the_statement_puts_each_paid_remito_above_the_payment_that_settled_it(): void
+    {
+        $first = $this->remito(1);
+        $this->travel(1)->days();
+        $second = $this->remito(2);
+        $this->travel(1)->days();
+        app(PaymentService::class)->register($this->producer->id, 1000, 'efectivo');
+        $this->travel(1)->days();
+        $unpaid = $this->remito(1);
+        $this->travel(1)->days();
+        app(PaymentService::class)->register($this->producer->id, 1500, 'transferencia');
+        $this->travel(1)->days();
+        $note = app(PaymentService::class)->registerCreditNote($this->producer->id, 500, 'Bonificación');
+        [$paysFirst, $paysSecond] = Payment::orderBy('id')->get()->all();
+
+        $statement = app(AccountStatementService::class)->statement($this->producer->fresh());
+
+        $this->assertSame([
+            "remito-{$first->id}", "pago-{$paysFirst->id}",
+            "remito-{$second->id}", "pago-{$paysSecond->id}", "nota_credito-{$note->id}",
+            "remito-{$unpaid->id}",
+        ], $statement['rows']->pluck('key')->all());
+        $this->assertSame([1000.0, 0.0, 2000.0, 500.0, 0.0, 1000.0], $statement['rows']->pluck('balance')->all());
+        $this->assertSame(1000.0, $statement['closing']);
+    }
+
+    public function test_the_change_left_after_settling_a_remito_does_not_pull_the_next_one_up(): void
+    {
+        $first = $this->remito(1);
+        $second = $this->remito(2);
+        $this->travel(1)->minutes();
+        app(PaymentService::class)->register($this->producer->id, 1000.36, 'efectivo');
+        app(PaymentService::class)->register($this->producer->id, 2500, 'transferencia');
+        [$paysFirst, $paysSecond] = Payment::orderBy('id')->get()->all();
+
+        $statement = app(AccountStatementService::class)->statement($this->producer->fresh());
+
+        $this->assertSame(
+            ["remito-{$first->id}", "pago-{$paysFirst->id}", "remito-{$second->id}", "pago-{$paysSecond->id}"],
+            $statement['rows']->pluck('key')->all(),
+        );
+        $this->assertSame([1000.0, -0.36, 1999.64, -500.36], $statement['rows']->pluck('balance')->all());
+    }
+
     public function test_the_screen_shows_the_credit_balance(): void
     {
         app(PaymentService::class)->register($this->producer->id, 250, 'efectivo');
