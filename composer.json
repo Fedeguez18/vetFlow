@@ -11,7 +11,8 @@
         "fakerphp/faker": "^1.23",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
-        "livewire/livewire": "^4.4"
+        "livewire/livewire": "^4.4",
+        "smalot/pdfparser": "^2.13"
     },
     "require-dev": {
         "laravel/boost": "*",

@@ -71,7 +71,7 @@ class InventoryCatalog extends Component
     #[On('stock-updated')]
     public function refreshCatalog(): void
     {
-        unset($this->kpis, $this->products);
+        unset($this->kpis, $this->products, $this->categories);
     }
 
     /**

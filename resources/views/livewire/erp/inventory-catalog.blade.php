@@ -29,6 +29,14 @@
     <button
         type="button"
         x-data
+        x-on:click="Livewire.dispatch('stock-import')"
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-slate-700 shadow-sm hover:bg-slate-50"
+    >
+        Importar PDF
+    </button>
+    <button
+        type="button"
+        x-data
         x-on:click="Livewire.dispatch('product-create')"
         class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-600"
     >
@@ -295,4 +303,5 @@
 
     <livewire:product-editor />
     <livewire:restock-modal />
+    <livewire:stock-import-modal />
 </div>
