@@ -29,7 +29,7 @@
                     'bg-[#0F2A26] text-white shadow-sm' => $page === $current,
                     'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' => $page !== $current,
                 ])
-                @if ($page === $current) aria-current="page" @endif
+                aria-current="{{ $page === $current ? 'page' : 'false' }}"
             >{{ $page }}</button>
         @endforeach
         <button type="button" wire:click="nextPage" @disabled(! $paginator->hasMorePages()) class="flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40">›</button>

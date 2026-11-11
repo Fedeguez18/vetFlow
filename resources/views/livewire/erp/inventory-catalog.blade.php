@@ -25,26 +25,27 @@
         ->values();
 @endphp
 
-@push('header-actions')
-    <button
-        type="button"
-        x-data
-        x-on:click="Livewire.dispatch('stock-import')"
-        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-slate-700 shadow-sm hover:bg-slate-50"
-    >
-        Importar PDF
-    </button>
-    <button
-        type="button"
-        x-data
-        x-on:click="Livewire.dispatch('product-create')"
-        class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-600"
-    >
-        Nuevo artículo
-    </button>
-@endpush
-
 <div class="space-y-6">
+    {{-- Page actions live here, not in the shared header, so the user and "Salir" never get pushed off screen. --}}
+    <div class="flex flex-wrap items-center justify-end gap-2">
+        <button
+            type="button"
+            x-data
+            x-on:click="Livewire.dispatch('stock-import')"
+            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-slate-700 shadow-sm hover:bg-slate-50"
+        >
+            Importar stock
+        </button>
+        <button
+            type="button"
+            x-data
+            x-on:click="Livewire.dispatch('product-create')"
+            class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-600"
+        >
+            Nuevo artículo
+        </button>
+    </div>
+
     {{-- KPIs --}}
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="flex items-start justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -292,7 +293,7 @@
                                 'bg-[#0F2A26] text-white shadow-sm' => $page === $current,
                                 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' => $page !== $current,
                             ])
-                            @if ($page === $current) aria-current="page" @endif
+                            aria-current="{{ $page === $current ? 'page' : 'false' }}"
                         >{{ $page }}</button>
                     @endforeach
                     <button type="button" wire:click="nextPage" @disabled(! $products->hasMorePages()) class="flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40">›</button>

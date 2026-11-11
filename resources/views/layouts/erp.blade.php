@@ -53,7 +53,7 @@
                             'bg-[#0F2A26] text-white shadow-sm' => $active,
                             'text-slate-600 hover:bg-white hover:text-slate-900' => ! $active,
                         ])
-                        @if ($active) aria-current="page" @endif
+                        aria-current="{{ $active ? 'page' : 'false' }}"
                     >
                         {{ $tab['label'] }}
                     </a>

@@ -37,6 +37,25 @@ class PagesSmokeTest extends TestCase
             ->assertSee('onclick="Livewire.dispatch(\'close-cash-register\')"', false);
     }
 
+    /**
+     * An @if inside an HTML tag gets Livewire's "<!--[if BLOCK]>" markers, whose ">" closes the tag
+     * and prints the rest of the attributes as text on the page.
+     */
+    public function test_no_page_wraps_attributes_in_livewire_block_markers(): void
+    {
+        $this->withoutVite();
+        $this->seed();
+        $this->actingAs(User::where('email', 'admin@demo.test')->first());
+
+        foreach (['/erp/inventario', '/erp/cuentas-corrientes', '/erp/auditoria', '/erp/rubros', '/erp/proveedores', '/erp/usuarios', '/perfil'] as $url) {
+            $html = $this->get($url)->assertOk()->getContent();
+
+            $this->assertDoesNotMatchRegularExpression('/<!--\[if BLOCK\]><!\[endif\]-->\s*(?:wire:|aria-|x-|data-|class=|@|:)/', $html, "{$url} has an @if inside an HTML tag.");
+        }
+
+        $this->assertMatchesRegularExpression('/\s+wire:poll\.30s\s+class="space-y-6"\s*>/', $this->get('/erp/auditoria')->getContent());
+    }
+
     public function test_each_terminal_renders_its_own_shell(): void
     {
         $this->withoutVite();

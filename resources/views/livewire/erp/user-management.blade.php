@@ -97,7 +97,7 @@
                             <button
                                 type="button"
                                 wire:click="regeneratePosCode({{ $user->id }})"
-                                @if ($user->hasPosCode()) wire:confirm="¿Generar un código nuevo para {{ $user->name }}? El actual deja de funcionar." @endif
+                                {!! $user->hasPosCode() ? 'wire:confirm="'.e('¿Generar un código nuevo para '.$user->name.'? El actual deja de funcionar.').'"' : '' !!}
                                 class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                             >{{ $user->hasPosCode() ? 'Nuevo código' : 'Generar código' }}</button>
                         @endif

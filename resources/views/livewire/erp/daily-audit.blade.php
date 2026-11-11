@@ -42,7 +42,8 @@
             setTimeout(() => frame.remove(), 1000);
         },
     }"
-    @if ($isToday) wire:poll.30s @endif
+    {{-- No @if inside a tag: Livewire wraps it in comment markers whose ">" closes the tag. --}}
+    {{ $isToday ? 'wire:poll.30s' : '' }}
     class="space-y-6"
 >
     <div class="flex flex-wrap items-end justify-between gap-4">
