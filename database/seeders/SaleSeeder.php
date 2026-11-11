@@ -40,6 +40,7 @@ class SaleSeeder extends Seeder
         $customers = collect(CustomerSeeder::CUSTOMERS)->map(fn ($customer) => Producer::where('name', $customer[0])->value('id'));
         $today = collect(self::SALES)->where(0, 0)->count();
         $todayIndex = 0;
+        $clock = Carbon::getTestNow();
 
         foreach (self::SALES as [$daysAgo, $time, $method, $customer, $items]) {
             Carbon::setTestNow($daysAgo > 0
@@ -56,7 +57,8 @@ class SaleSeeder extends Seeder
                 ],
             );
 
-            Carbon::setTestNow();
+            // Back to the clock the caller had (a test's travelTo), not to the real date.
+            Carbon::setTestNow($clock);
         }
     }
 
