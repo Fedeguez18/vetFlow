@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountPdfController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\CashAuditExportController;
 use App\Http\Controllers\InventoryExportController;
+use App\Http\Controllers\StockImportTemplateController;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Profile;
@@ -57,6 +58,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::redirect('/', '/erp/inventario');
         Route::get('/inventario', InventoryCatalog::class)->name('inventory');
         Route::get('/inventario/exportar', InventoryExportController::class)->name('inventory.export');
+        Route::get('/inventario/plantilla-importacion', StockImportTemplateController::class)->name('inventory.import-template');
         Route::get('/cuentas-corrientes', AccountsReceivable::class)->name('accounts');
         Route::get('/cuentas-corrientes/{producer}/resumen.pdf', [AccountPdfController::class, 'statement'])->name('accounts.statement-pdf');
         Route::get('/cuentas-corrientes/{producer}/remitos.pdf', [AccountPdfController::class, 'remitosDetail'])->name('accounts.remitos-pdf');

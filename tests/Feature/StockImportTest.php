@@ -104,11 +104,11 @@ class StockImportTest extends TestCase
 
         Livewire::test(StockImportModal::class)
             ->call('start')
-            ->set('pdf', $this->priceListPdf([
+            ->set('file', $this->priceListPdf([
                 'VACUNAS' => [['AFT-50', 'Vacuna Aftosa x 50 dosis', '$ 12.345,67'], ['7791234567890', 'Bovilis Clostridial 100 ml', '8.900,00']],
                 'ANTIPARASITARIOS' => [['IVO-500', 'Ivomec 1% x 500 ml', '45.600']],
             ]))
-            ->call('readPdf')
+            ->call('readFile')
             ->assertHasNoErrors()
             ->assertSet('fileName', 'lista.pdf')
             ->assertCount('rows', 3)
@@ -160,8 +160,8 @@ class StockImportTest extends TestCase
     {
         Livewire::test(StockImportModal::class)
             ->call('start')
-            ->set('pdf', $this->priceListPdf(['VACUNAS' => [['AFT-50', 'Vacuna Aftosa', '1.210,00'], ['BRU-19', 'Vacuna Brucelosis', '5.000,00']]]))
-            ->call('readPdf')
+            ->set('file', $this->priceListPdf(['VACUNAS' => [['AFT-50', 'Vacuna Aftosa', '1.210,00'], ['BRU-19', 'Vacuna Brucelosis', '5.000,00']]]))
+            ->call('readFile')
             ->set('rows.1.include', false)
             ->set('markupPercent', '0')
             ->set('pricesIncludeVat', true)
@@ -179,8 +179,8 @@ class StockImportTest extends TestCase
 
         Livewire::test(StockImportModal::class)
             ->call('start')
-            ->set('pdf', $this->priceListPdf(['VACUNAS' => [['AFT-50', 'Vacuna Aftosa', '1.000,00']]]))
-            ->call('readPdf')
+            ->set('file', $this->priceListPdf(['VACUNAS' => [['AFT-50', 'Vacuna Aftosa', '1.000,00']]]))
+            ->call('readFile')
             ->set('rows.0.quantity', '5')
             ->call('import')
             ->assertHasErrors(['rows.0.lot_number' => 'required', 'rows.0.expiration_date' => 'required']);
@@ -192,8 +192,8 @@ class StockImportTest extends TestCase
     {
         $parsed = Livewire::test(StockImportModal::class)
             ->call('start')
-            ->set('pdf', UploadedFile::fake()->createWithContent('lista.pdf', Pdf::loadHTML('<p>AFT-50 Vacuna Aftosa $ 1.000,00</p>')->output()))
-            ->call('readPdf')
+            ->set('file', UploadedFile::fake()->createWithContent('lista.pdf', Pdf::loadHTML('<p>AFT-50 Vacuna Aftosa $ 1.000,00</p>')->output()))
+            ->call('readFile')
             ->assertSet('rows.0.category', '');
 
         $parsed->call('import')->assertHasErrors(['rows.0.category' => 'required', 'markupPercent' => 'required']);
@@ -231,13 +231,85 @@ class StockImportTest extends TestCase
     {
         Livewire::test(StockImportModal::class)
             ->call('start')
-            ->set('pdf', UploadedFile::fake()->createWithContent('carta.pdf', Pdf::loadHTML('<p>Estimado cliente, adjuntamos novedades.</p>')->output()))
-            ->call('readPdf')
-            ->assertHasErrors('pdf')
+            ->set('file', UploadedFile::fake()->createWithContent('carta.pdf', Pdf::loadHTML('<p>Estimado cliente, adjuntamos novedades.</p>')->output()))
+            ->call('readFile')
+            ->assertHasErrors('file')
             ->assertSet('rows', [])
-            ->set('pdf', UploadedFile::fake()->create('lista.xlsx', 10))
-            ->call('readPdf')
-            ->assertHasErrors(['pdf' => 'mimes']);
+            ->set('file', UploadedFile::fake()->create('lista.xlsx', 10))
+            ->call('readFile')
+            ->assertHasErrors(['file' => 'extensions']);
+    }
+
+    public function test_the_template_downloads_with_the_columns_the_import_reads(): void
+    {
+        $response = $this->get(route('erp.inventory.import-template'))->assertOk();
+
+        $this->assertStringContainsString('plantilla-importar-stock.csv', $response->headers->get('Content-Disposition'));
+        $this->assertSame("\xEF\xBB\xBFSKU;\"Código de barras\";Artículo;Descripción;Rubro;Proveedor;Costo;\"% Remarque\";\"% IVA\";\"Precio venta\";Existencias;\"Stock mínimo\";\"Próximo vencimiento\";Estado;Activo;Lote\n", $response->streamedContent());
+
+        $this->actingAs(User::factory()->create())->get(route('erp.inventory.import-template'))->assertForbidden();
+    }
+
+    public function test_the_template_in_the_inventory_export_format_imports(): void
+    {
+        $csv = "\xEF\xBB\xBFSKU;\"Código de barras\";Artículo;Descripción;Rubro;Proveedor;Costo;\"% Remarque\";\"% IVA\";\"Precio venta\";Existencias;\"Stock mínimo\";\"Próximo vencimiento\";Estado;Activo;Lote\n"
+            ."aft-50;7790000000001;Vacuna Aftosa x 50 dosis;Frasco multidosis;Vacunas;;12.345,67;40,00;21,00;20913,56;12;2;31/12/2027;;Sí;af-2611\n"
+            .";;;;;;;;;;;;;;;\n"
+            .";7791234567890;Ivomec 1% x 500 ml;;Antiparasitarios;;45600,00;;10,50;;3;;;;;\n"
+            ."SIN-NOMBRE;;;Sin artículo;;;100;;;;1;;;;;\n";
+        $ivomec = Product::factory()->create(['sku' => 'IVO-500', 'barcode' => '7791234567890', 'stock' => 10]);
+
+        Livewire::test(StockImportModal::class)
+            ->call('start')
+            ->set('file', UploadedFile::fake()->createWithContent('stock.csv', $csv))
+            ->call('readFile')
+            ->assertHasNoErrors()
+            ->assertCount('rows', 2)
+            ->assertSet('rows.0.code', 'AFT-50')
+            ->assertSet('rows.0.quantity', '12')
+            ->assertSet('rows.0.cost', '12345.67')
+            ->assertSet('rows.0.name', 'Vacuna Aftosa x 50 dosis')
+            ->assertSet('rows.0.category', 'Vacunas')
+            ->assertSet('rows.0.vat', 21.0)
+            ->assertSet('rows.0.expiration_date', '2027-12-31')
+            ->assertSet('rows.1.code', '7791234567890')
+            ->assertSet('rows.1.vat', 10.5)
+            ->assertSet('rows.0.lot_number', 'af-2611')
+            ->assertSet('ignored', ['SIN-NOMBRE Sin artículo 100 1'])
+            ->set('markupPercent', '40')
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $aftosa = Product::where('sku', 'AFT-50')->sole();
+        $this->assertSame(12, $aftosa->stock);
+        $this->assertTrue($aftosa->tracks_expiry);
+        $this->assertSame(['AF-2611', '2027-12-31'], [$aftosa->lots()->sole()->lot_number, $aftosa->lots()->sole()->expiration_date->toDateString()]);
+        $this->assertSame(13, $ivomec->fresh()->stock);
+        $this->assertSame('Importación planilla: stock.csv', $ivomec->stockMovements()->sole()->reason);
+    }
+
+    public function test_a_spreadsheet_saved_by_excel_in_windows_1252_with_commas_is_read(): void
+    {
+        $csv = mb_convert_encoding("Descripción,Precio,Cantidad\n\"Dipirona x 50 ml\",\"1200,50\",4\n", 'Windows-1252', 'UTF-8');
+
+        Livewire::test(StockImportModal::class)
+            ->call('start')
+            ->set('file', UploadedFile::fake()->createWithContent('stock.csv', $csv))
+            ->call('readFile')
+            ->assertHasNoErrors()
+            ->assertSet('rows.0.name', 'Dipirona x 50 ml')
+            ->assertSet('rows.0.cost', '1200.5')
+            ->assertSet('rows.0.quantity', '4');
+    }
+
+    public function test_a_spreadsheet_without_the_template_header_is_rejected(): void
+    {
+        Livewire::test(StockImportModal::class)
+            ->call('start')
+            ->set('file', UploadedFile::fake()->createWithContent('stock.csv', "AFT-50;Vacuna Aftosa;1000\n"))
+            ->call('readFile')
+            ->assertHasErrors('file')
+            ->assertSet('rows', []);
     }
 
     public function test_only_administrators_can_import(): void

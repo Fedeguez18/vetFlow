@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\PriceListPdfParser;
 use App\Services\StockImportService;
+use App\Services\StockImportSpreadsheet;
 use App\Support\Pricing;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -20,7 +21,7 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 
 /**
- * "Importar PDF": reads a supplier price list, shows every row for review and loads it into the
+ * "Importar stock": reads a supplier price list PDF or the template spreadsheet, shows every row for review and loads it into the
  * inventory, creating the rubros and products that don't exist yet.
  */
 class StockImportModal extends Component
@@ -29,10 +30,19 @@ class StockImportModal extends Component
 
     public bool $open = false;
 
-    /** @var UploadedFile|null */
-    public $pdf = null;
+    /**
+     * The supplier PDF or the filled template spreadsheet.
+     *
+     * @var UploadedFile|null
+     */
+    public $file = null;
 
     public string $fileName = '';
+
+    /**
+     * What was read, for the stock movement reason: "PDF" or "planilla".
+     */
+    public string $source = 'PDF';
 
     /**
      * @var list<array{include: bool, category: string, code: string, name: string, quantity: string, cost: string, vat: ?float, lot_number: string, expiration_date: string}>
@@ -40,7 +50,7 @@ class StockImportModal extends Component
     public array $rows = [];
 
     /**
-     * PDF lines that were neither a product nor a rubro, shown so nothing is lost silently.
+     * File lines that were neither a product nor a rubro, shown so nothing is lost silently.
      *
      * @var list<string>
      */
@@ -69,34 +79,42 @@ class StockImportModal extends Component
     public function close(): void
     {
         $this->open = false;
-        $this->pdf = null;
+        $this->file = null;
         $this->resetValidation();
     }
 
-    public function readPdf(PriceListPdfParser $parser): void
+    /**
+     * Read the uploaded supplier PDF as it came, or the filled template spreadsheet (CSV).
+     */
+    public function readFile(PriceListPdfParser $pdfParser, StockImportSpreadsheet $spreadsheet): void
     {
-        $this->validate(['pdf' => ['required', 'file', 'mimes:pdf', 'max:10240']], [
-            'pdf.required' => 'Elegí el PDF de la lista de precios.',
-            'pdf.mimes' => 'El archivo tiene que ser un PDF.',
-            'pdf.max' => 'El PDF no puede superar los 10 MB.',
+        $this->validate(['file' => ['required', 'file', 'extensions:pdf,csv,txt', 'max:10240']], [
+            'file.required' => 'Elegí el PDF de la lista de precios o la planilla completa.',
+            'file.extensions' => 'El archivo tiene que ser un PDF o la planilla en CSV. Si la guardaste como Excel (.xlsx), usá Archivo > Guardar como > CSV.',
+            'file.max' => 'El archivo no puede superar los 10 MB.',
         ]);
 
+        $isPdf = strtolower($this->file->getClientOriginalExtension()) === 'pdf';
+
         try {
-            $result = $parser->parseFile($this->pdf->getRealPath());
+            $result = $isPdf ? $pdfParser->parseFile($this->file->getRealPath()) : $spreadsheet->parseFile($this->file->getRealPath());
         } catch (StockException $e) {
-            $this->addError('pdf', $e->getMessage());
+            $this->addError('file', $e->getMessage());
 
             return;
         }
 
         if ($result['rows'] === []) {
-            $this->addError('pdf', 'No se encontraron productos con precio en el PDF. Si es un escaneo (una foto del papel), no se puede leer.');
+            $this->addError('file', $isPdf
+                ? 'No se encontraron productos con precio en el PDF. Si es un escaneo (una foto del papel), no se puede leer.'
+                : 'La planilla no tiene productos: completá al menos la descripción y el precio de lista debajo de los títulos.');
 
             return;
         }
 
-        $this->fileName = $this->pdf->getClientOriginalName();
-        $this->pdf = null;
+        $this->fileName = $this->file->getClientOriginalName();
+        $this->source = $isPdf ? 'PDF' : 'planilla';
+        $this->file = null;
         $this->ignored = array_slice($result['ignored'], 0, 200);
         $this->rows = array_map(fn (array $row) => [
             'include' => true,
@@ -106,19 +124,19 @@ class StockImportModal extends Component
             'quantity' => (string) $row['quantity'],
             'cost' => $row['cost'] !== null ? ProductForm::plain($row['cost']) : '',
             'vat' => $row['vat'],
-            'lot_number' => '',
-            'expiration_date' => '',
+            'lot_number' => $row['lot_number'] ?? '',
+            'expiration_date' => $row['expiration_date'] ?? '',
         ], $result['rows']);
 
         unset($this->matches);
     }
 
     /**
-     * Discard the preview and pick another PDF.
+     * Discard the preview and pick another file.
      */
     public function restart(): void
     {
-        $this->reset('rows', 'ignored', 'fileName', 'pdf');
+        $this->reset('rows', 'ignored', 'fileName', 'source', 'file');
         $this->resetValidation();
     }
 
@@ -203,7 +221,7 @@ class StockImportModal extends Component
                     'prices_include_vat' => $this->pricesIncludeVat,
                     'update_costs' => $this->updateCosts,
                     'default_category' => trim($this->defaultCategory),
-                    'reason' => mb_substr('Importación PDF: '.$this->fileName, 0, 255),
+                    'reason' => mb_substr("Importación {$this->source}: ".$this->fileName, 0, 255),
                 ],
                 auth()->id(),
             );

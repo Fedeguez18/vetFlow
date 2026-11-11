@@ -11,10 +11,10 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Importar stock</span>
-                        <h2 class="text-lg font-bold text-slate-900">{{ $rows === [] ? 'Lista de precios en PDF' : $fileName }}</h2>
+                        <h2 class="text-lg font-bold text-slate-900">{{ $rows === [] ? 'Lista de precios o planilla' : $fileName }}</h2>
                         <p class="text-xs text-slate-500">
                             @if ($rows === [])
-                                Se leen el código, la descripción, el precio y, si la lista los tiene, la cantidad y el IVA. Los títulos de sección se toman como rubros.
+                                Subí el PDF del proveedor tal como llegó, o la plantilla completa. Antes de importar vas a poder revisar y corregir cada fila.
                             @else
                                 Revisá y corregí las filas antes de confirmar. Los rubros y artículos que no existen se crean; los que existen suman las unidades como ingreso.
                             @endif
@@ -24,19 +24,36 @@
                 </div>
 
                 @if ($rows === [])
-                    <form wire:submit="readPdf" class="space-y-4">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <span class="block text-sm font-semibold text-slate-800">PDF del proveedor</span>
+                            <p class="mt-1 text-xs text-slate-500">Subilo tal como está. Se leen el código, la descripción, el precio y, si la lista los tiene, la cantidad y el IVA. Los títulos de sección se toman como rubros.</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <span class="block text-sm font-semibold text-slate-800">Planilla</span>
+                            <p class="mt-1 text-xs text-slate-500">Mismas columnas que "Exportar a Excel" del inventario más Lote al final, una fila por artículo. En Existencias poné las unidades que ingresan; con Lote y Próximo vencimiento el artículo se carga con control de vencimiento. Proveedor, % Remarque, Precio venta, Stock mínimo, Estado y Activo no se usan. Guardala como CSV.</p>
+                            <a href="{{ route('erp.inventory.import-template') }}" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#0F2A26] hover:underline">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Descargar plantilla de planilla
+                            </a>
+                        </div>
+                    </div>
+
+                    <form wire:submit="readFile" class="space-y-4">
                         <div>
-                            <label for="si-pdf" class="{{ $label }}">Archivo PDF</label>
-                            <input id="si-pdf" type="file" accept="application/pdf,.pdf" wire:model="pdf" class="{{ $input }} file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700">
-                            <p wire:loading wire:target="pdf" class="mt-1 text-xs text-slate-500">Subiendo…</p>
-                            @error('pdf') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                            <label for="si-file" class="{{ $label }}">Archivo PDF o planilla CSV</label>
+                            <input id="si-file" type="file" accept="application/pdf,.pdf,text/csv,.csv" wire:model="file" class="{{ $input }} file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700">
+                            <p wire:loading wire:target="file" class="mt-1 text-xs text-slate-500">Subiendo…</p>
+                            @error('file') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                         </div>
 
                         <div class="flex justify-end gap-2 pt-1">
                             <button type="button" wire:click="close" class="rounded-[10px] px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancelar</button>
-                            <button type="submit" wire:loading.attr="disabled" wire:target="pdf, readPdf" class="rounded-[10px] bg-[#0F2A26] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1A3D37] disabled:opacity-50">
-                                <span wire:loading.remove wire:target="readPdf">Leer PDF</span>
-                                <span wire:loading wire:target="readPdf">Leyendo…</span>
+                            <button type="submit" wire:loading.attr="disabled" wire:target="file, readFile" class="rounded-[10px] bg-[#0F2A26] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1A3D37] disabled:opacity-50">
+                                <span wire:loading.remove wire:target="readFile">Leer archivo</span>
+                                <span wire:loading wire:target="readFile">Leyendo…</span>
                             </button>
                         </div>
                     </form>
@@ -194,7 +211,7 @@
 
                         @if ($ignored !== [])
                             <details class="rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-600">
-                                <summary class="cursor-pointer font-semibold">{{ count($ignored) }} líneas del PDF sin precio que no se importaron</summary>
+                                <summary class="cursor-pointer font-semibold">{{ count($ignored) }} líneas {{ $source === 'PDF' ? 'del PDF' : 'de la planilla' }} sin precio que no se importaron</summary>
                                 <ul class="mt-2 max-h-40 list-disc space-y-0.5 overflow-auto pl-5 font-mono">
                                     @foreach ($ignored as $line)
                                         <li>{{ $line }}</li>
@@ -204,7 +221,7 @@
                         @endif
 
                         <div class="flex flex-wrap justify-end gap-2 pt-1">
-                            <button type="button" wire:click="restart" class="mr-auto rounded-[10px] px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Elegir otro PDF</button>
+                            <button type="button" wire:click="restart" class="mr-auto rounded-[10px] px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Elegir otro archivo</button>
                             <button type="button" wire:click="close" class="rounded-[10px] px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancelar</button>
                             <button type="submit" wire:loading.attr="disabled" wire:target="import" class="rounded-[10px] bg-[#0F2A26] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1A3D37] disabled:opacity-50">
                                 <span wire:loading.remove wire:target="import">Importar {{ $summary['new'] + $summary['existing'] }} artículos</span>
