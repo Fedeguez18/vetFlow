@@ -16,14 +16,29 @@ class Payment extends Model
     use HasFactory;
 
     /**
-     * Ways a producer can pay their account.
+     * Ways a producer can pay their account. There is no posnet: cards go through Mercado Pago.
      */
     public const METHODS = [
         'efectivo' => 'Efectivo',
+        'mercado_pago' => 'Mercado Pago',
         'transferencia' => 'Transferencia',
         'cheque' => 'Cheque',
+    ];
+
+    /**
+     * Methods no longer offered that older payments were registered with.
+     */
+    public const RETIRED_METHODS = [
         'tarjeta' => 'Tarjeta',
     ];
+
+    /**
+     * Label of the method a payment was made with, including the retired ones.
+     */
+    public static function methodLabel(?string $method): string
+    {
+        return self::METHODS[$method] ?? self::RETIRED_METHODS[$method] ?? (string) $method;
+    }
 
     /**
      * Get the attributes that should be cast.

@@ -86,7 +86,7 @@ class AccountStatementService
 
     protected function paymentDetail(Payment $payment): string
     {
-        $method = Payment::METHODS[$payment->payment_method] ?? $payment->payment_method;
+        $method = Payment::methodLabel($payment->payment_method);
 
         return $payment->notes ? "{$method} · {$payment->notes}" : $method;
     }

@@ -4,7 +4,7 @@
 @php
     $money = fn ($amount) => Pricing::moneyWithCents($amount);
     $signed = fn (float $balance) => $balance < 0 ? $money(-$balance).' a favor' : $money($balance);
-    $method = Payment::METHODS[$payment->payment_method] ?? $payment->payment_method;
+    $method = Payment::methodLabel($payment->payment_method);
 @endphp
 
 @extends('pdf.layout', ['client' => $producer])

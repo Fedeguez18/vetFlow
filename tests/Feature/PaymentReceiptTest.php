@@ -107,6 +107,36 @@ class PaymentReceiptTest extends TestCase
         $this->assertStringNotContainsString($this->remitos[2]->voucher_number, $html);
     }
 
+    public function test_account_payments_take_mercado_pago_and_no_longer_cards(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        Livewire::test(AccountsReceivable::class)
+            ->call('selectProducer', $this->producer->id)
+            ->call('openPaymentModal')
+            ->assertSee('Mercado Pago')
+            ->assertDontSee('>Tarjeta<', false)
+            ->set('paymentAmount', '1000')
+            ->set('paymentMethod', 'tarjeta')
+            ->call('registerPayment')
+            ->assertHasErrors('paymentMethod')
+            ->set('paymentMethod', 'mercado_pago')
+            ->call('registerPayment')
+            ->assertHasNoErrors();
+
+        $this->assertSame('mercado_pago', Payment::sole()->payment_method);
+        $this->assertSame('Mercado Pago', Payment::methodLabel('mercado_pago'));
+    }
+
+    public function test_an_old_card_payment_still_shows_its_method_on_the_receipt(): void
+    {
+        $payment = Payment::factory()->for($this->producer)->create(['amount' => 1000, 'payment_method' => 'tarjeta']);
+
+        $html = view('pdf.receipt', app(AccountDocumentService::class)->receipt($payment))->render();
+
+        $this->assertStringContainsString('Tarjeta', $html);
+    }
+
     public function test_a_success_modal_offers_the_receipt_after_registering_a_payment(): void
     {
         $this->actingAs(User::factory()->admin()->create());

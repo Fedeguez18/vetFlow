@@ -258,7 +258,7 @@ class AccountsReceivable extends Component
             'id' => $payment->id,
             'voucher' => $payment->voucher_number,
             'amount' => (float) $payment->amount,
-            'method' => Payment::METHODS[$payment->payment_method] ?? $payment->payment_method,
+            'method' => Payment::methodLabel($payment->payment_method),
             'balance' => (float) $this->selectedProducer->balance,
             'allocations' => $receipt['allocations']->map(fn (array $allocation) => [
                 'voucher' => $allocation['sale']->voucher_number,
