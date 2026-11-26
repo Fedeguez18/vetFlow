@@ -4,12 +4,36 @@
         <span class="text-2xl font-bold tracking-tight text-slate-900">vete<span class="text-emerald-600">Flow</span></span>
     </div>
 
-    @if ($this->user)
+    @if ($this->user && $this->openCashSession && $this->openCashSession->user_id !== $this->user->id)
+        {{-- Another user left their caja open: count the cash (without seeing the expected amount) and close it. --}}
+        <form wire:submit="closePreviousCashRegister" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div>
+                <h1 class="text-lg font-semibold text-slate-900">Hola, {{ $this->user->name }}</h1>
+                <p class="text-sm text-slate-500">La caja de <span class="font-semibold text-slate-700">{{ $this->openCashSession->user->name }}</span> sigue abierta desde las {{ $this->openCashSession->created_at->format('H:i') }}. Para abrir la tuya, primero cerrala contando el efectivo del cajón. Queda registrado que la cerraste vos.</p>
+            </div>
+
+            <div>
+                <x-form.label for="declaredCash">Efectivo contado en el cajón</x-form.label>
+                <x-form.input id="declaredCash" type="text" inputmode="decimal" wire:model="declaredCash" placeholder="0" autofocus autocomplete="off" />
+                <x-form.error name="declaredCash" />
+            </div>
+
+            <button type="submit" wire:loading.attr="disabled" class="w-full rounded-[10px] bg-[#0F2A26] px-4 py-3 font-bold text-white shadow-sm hover:bg-[#1A3D37] disabled:opacity-50">
+                Cerrar caja de {{ $this->openCashSession->user->name }}
+            </button>
+
+            <button type="button" wire:click="back" class="w-full text-sm font-semibold text-slate-500 hover:text-slate-800">No soy yo</button>
+        </form>
+    @elseif ($this->user)
         <form wire:submit="openCashRegister" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div>
                 <h1 class="text-lg font-semibold text-slate-900">Hola, {{ $this->user->name }}</h1>
                 <p class="text-sm text-slate-500">Vas a abrir la caja a tu nombre. Todo lo que se venda hasta cerrarla queda registrado a tu nombre.</p>
             </div>
+
+            @if ($status)
+                <p class="rounded-[10px] bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-600/15">{{ $status }}</p>
+            @endif
 
             <div>
                 <x-form.label for="openingAmount">Fondo inicial (efectivo para cambio)</x-form.label>
@@ -26,8 +50,13 @@
     @else
         <form wire:submit="unlock" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div>
-                <h1 class="text-lg font-semibold text-slate-900">Caja cerrada</h1>
-                <p class="text-sm text-slate-500">Ingresá tu código para abrir la caja.</p>
+                @if ($this->openCashSession)
+                    <h1 class="text-lg font-semibold text-slate-900">Caja de {{ $this->openCashSession->user->name }} abierta</h1>
+                    <p class="text-sm text-slate-500">El mostrador se bloqueó. {{ $this->openCashSession->user->name }}, ingresá tu código para seguir vendiendo. Si sos otra persona, con tu código podés cerrarla y abrir la tuya.</p>
+                @else
+                    <h1 class="text-lg font-semibold text-slate-900">Caja cerrada</h1>
+                    <p class="text-sm text-slate-500">Ingresá tu código para abrir la caja.</p>
+                @endif
             </div>
 
             @if (session('status'))

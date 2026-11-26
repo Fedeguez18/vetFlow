@@ -52,7 +52,7 @@ class AccountPdfController extends Controller
      */
     public function posRemito(Sale $sale, PosTerminalService $terminals, AccountDocumentService $documents): Response
     {
-        $cashSessionId = $terminals->current()?->openCashSession?->id;
+        $cashSessionId = $terminals->unlockedCashSession()?->id;
 
         abort_unless($cashSessionId && $sale->cash_session_id === $cashSessionId, 404);
 

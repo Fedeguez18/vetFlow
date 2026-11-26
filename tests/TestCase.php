@@ -26,10 +26,22 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Work from a terminal with a caja open in the user's name (a new seller by default).
+     * Work from a terminal with a caja open in the user's name (a new seller by default), unlocked in this browser.
      */
     protected function openCashRegister(?User $user = null, float $openingAmount = 0): CashSession
     {
-        return app(CashSessionService::class)->open($this->onPosTerminal(), $user ?? User::factory()->create(), $openingAmount);
+        $cashSession = app(CashSessionService::class)->open($this->onPosTerminal(), $user ?? User::factory()->create(), $openingAmount);
+        $this->unlockCashRegister($cashSession);
+
+        return $cashSession;
+    }
+
+    /**
+     * Make the following requests come from the browser that unlocked the caja with its user's code.
+     */
+    protected function unlockCashRegister(CashSession $cashSession): void
+    {
+        $this->withCookie(CashSession::UNLOCK_COOKIE, (string) $cashSession->id);
+        Livewire::withCookie(CashSession::UNLOCK_COOKIE, (string) $cashSession->id);
     }
 }

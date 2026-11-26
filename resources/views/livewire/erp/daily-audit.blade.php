@@ -140,7 +140,19 @@
                             @endforeach
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-slate-800">{{ $money($row['expected']) }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-800">{{ $session->isOpen() ? '—' : $money($session->declared_cash) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-800">
+                            @if ($session->isOpen())
+                                —
+                            @elseif ($session->closed_automatically)
+                                <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-600/15">Cierre automático, sin arqueo</span>
+                                <span class="block text-xs text-slate-500">{{ \App\Services\CashSessionService::IDLE_HOURS }} h sin movimiento</span>
+                            @else
+                                {{ $money($session->declared_cash) }}
+                                @if ($session->closed_by && $session->closed_by !== $session->user_id)
+                                    <span class="block text-xs text-slate-500">Contó {{ $session->closer?->name ?? '—' }}</span>
+                                @endif
+                            @endif
+                        </td>
                         <td @class([
                             'whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums',
                             'text-slate-400' => $difference === null,

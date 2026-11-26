@@ -14,6 +14,16 @@ use Illuminate\Support\Facades\DB;
 class CashSessionService
 {
     /**
+     * Hours without using the mostrador after which a caja closes by itself.
+     */
+    public const IDLE_HOURS = 4;
+
+    /**
+     * Activity is written at most once per this many seconds, not on every click.
+     */
+    public const ACTIVITY_THROTTLE_SECONDS = 60;
+
+    /**
      * Open a caja on the terminal in the name of the user who typed their code.
      * One open caja per terminal and per user.
      *
@@ -31,6 +41,8 @@ class CashSessionService
             throw new CashSessionException("El usuario {$user->name} está dado de baja.");
         }
 
+        $this->closeIdle();
+
         return DB::transaction(function () use ($terminal, $user, $openingCents) {
             $terminal = PosTerminal::query()->lockForUpdate()->findOrFail($terminal->id);
 
@@ -38,8 +50,12 @@ class CashSessionService
                 throw new CashSessionException('Ya hay una caja abierta en esta terminal.');
             }
 
-            if (CashSession::query()->open()->where('user_id', $user->id)->exists()) {
-                throw new CashSessionException("{$user->name} ya tiene una caja abierta en otra terminal.");
+            $elsewhere = CashSession::query()->open()->with('posTerminal')->where('user_id', $user->id)->first();
+
+            if ($elsewhere) {
+                $where = $elsewhere->posTerminal ? "en la terminal {$elsewhere->posTerminal->name}" : 'en otra terminal';
+
+                throw new CashSessionException("{$user->name} ya tiene una caja abierta {$where}. Cerrala ahí para abrir una acá.");
             }
 
             $terminal->update(['last_used_at' => now()]);
@@ -47,16 +63,18 @@ class CashSessionService
             return $terminal->cashSessions()->create([
                 'user_id' => $user->id,
                 'opening_amount' => $openingCents / 100,
+                'last_activity_at' => now(),
             ]);
         });
     }
 
     /**
-     * Close the caja with the cash the user counted, keeping what the system expected to compare them.
+     * Close the caja with the cash counted by its user, or by another user who takes over the terminal,
+     * keeping what the system expected to compare them.
      *
      * @throws CashSessionException
      */
-    public function close(CashSession $cashSession, float $declaredCash): CashSession
+    public function close(CashSession $cashSession, float $declaredCash, ?User $closedBy = null): CashSession
     {
         $declaredCents = (int) round($declaredCash * 100);
 
@@ -64,7 +82,7 @@ class CashSessionService
             throw new CashSessionException('El efectivo contado no puede ser negativo.');
         }
 
-        return DB::transaction(function () use ($cashSession, $declaredCents) {
+        return DB::transaction(function () use ($cashSession, $declaredCents, $closedBy) {
             $cashSession = CashSession::query()->lockForUpdate()->findOrFail($cashSession->id);
 
             if (! $cashSession->isOpen()) {
@@ -75,10 +93,76 @@ class CashSessionService
                 'closed_at' => now(),
                 'expected_cash' => $this->expectedCash($cashSession),
                 'declared_cash' => $declaredCents / 100,
+                'closed_by' => $closedBy?->id ?? $cashSession->user_id,
             ]);
 
             return $cashSession;
         });
+    }
+
+    /**
+     * Close the cajas nobody used for IDLE_HOURS. Nobody counted the cash: it stays without a declared
+     * amount for administración, closed at the moment it went idle (not when someone noticed).
+     *
+     * @return int how many cajas were closed
+     */
+    public function closeIdle(): int
+    {
+        $cutoff = now()->subHours(self::IDLE_HOURS);
+
+        return CashSession::query()
+            ->open()
+            ->where(fn ($query) => $query
+                ->where('last_activity_at', '<=', $cutoff)
+                ->orWhere(fn ($query) => $query->whereNull('last_activity_at')->where('created_at', '<=', $cutoff)))
+            ->pluck('id')
+            ->filter(fn (int $id) => $this->closeIfIdle(CashSession::findOrFail($id)))
+            ->count();
+    }
+
+    /**
+     * Close the caja without a cash count when it has been idle for IDLE_HOURS.
+     *
+     * @return bool whether it was closed
+     */
+    public function closeIfIdle(CashSession $cashSession): bool
+    {
+        if (! $this->isIdle($cashSession)) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($cashSession) {
+            $cashSession = CashSession::query()->lockForUpdate()->findOrFail($cashSession->id);
+
+            if (! $cashSession->isOpen() || ! $this->isIdle($cashSession)) {
+                return false;
+            }
+
+            $cashSession->update([
+                'closed_at' => $cashSession->lastActivityAt()->copy()->addHours(self::IDLE_HOURS),
+                'expected_cash' => $this->expectedCash($cashSession),
+                'closed_automatically' => true,
+            ]);
+
+            return true;
+        });
+    }
+
+    public function isIdle(CashSession $cashSession): bool
+    {
+        return $cashSession->isOpen() && $cashSession->lastActivityAt()->lte(now()->subHours(self::IDLE_HOURS));
+    }
+
+    /**
+     * Someone is using the mostrador with this caja: it starts counting the idle hours again.
+     */
+    public function recordActivity(CashSession $cashSession): void
+    {
+        if ($cashSession->lastActivityAt()->gt(now()->subSeconds(self::ACTIVITY_THROTTLE_SECONDS))) {
+            return;
+        }
+
+        $cashSession->update(['last_activity_at' => now()]);
     }
 
     /**
@@ -109,7 +193,7 @@ class CashSessionService
     public function forDay(CarbonImmutable $day): Collection
     {
         $sessions = CashSession::query()
-            ->with(['user', 'reviewer', 'posTerminal'])
+            ->with(['user', 'reviewer', 'closer', 'posTerminal'])
             ->where('created_at', '<=', $day->endOfDay())
             ->where(fn ($query) => $query->whereNull('closed_at')->orWhere('closed_at', '>=', $day->startOfDay()))
             ->orderBy('created_at')

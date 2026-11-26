@@ -80,13 +80,30 @@ class PosDesk extends Component
     public string $declaredCash = '';
 
     /**
-     * Without an open caja the terminal stays locked asking for a code.
+     * Without a caja unlocked in this browser the terminal stays locked asking for a code.
      */
-    public function mount()
+    public function mount(CashSessionService $cashSessions)
     {
         if (! $this->cashSession) {
             return $this->redirectRoute('pos.lock');
         }
+
+        $cashSessions->recordActivity($this->cashSession);
+    }
+
+    /**
+     * Every interaction with the mostrador counts as activity of the caja. If it closed for being
+     * idle (or someone closed it from another browser), the mostrador goes back to the lock.
+     */
+    public function hydrate(CashSessionService $cashSessions): void
+    {
+        if (! $this->cashSession) {
+            $this->redirectRoute('pos.lock');
+
+            return;
+        }
+
+        $cashSessions->recordActivity($this->cashSession);
     }
 
     #[On('close-cash-register')]
@@ -105,7 +122,7 @@ class PosDesk extends Component
     /**
      * Close the caja with the counted cash: it goes to administración and the terminal locks.
      */
-    public function closeCashRegister(CashSessionService $cashSessions)
+    public function closeCashRegister(CashSessionService $cashSessions, PosTerminalService $terminals)
     {
         $cashSession = $this->cashSession;
 
@@ -129,6 +146,7 @@ class PosDesk extends Component
             return null;
         }
 
+        $terminals->lock();
         session()->flash('status', "Caja de {$cashSession->user->name} cerrada y enviada a administración.");
 
         return $this->redirectRoute('pos.lock');
@@ -404,12 +422,12 @@ class PosDesk extends Component
     }
 
     /**
-     * The caja open on this terminal: its user is the one selling.
+     * The caja open on this terminal and unlocked in this browser: its user is the one selling.
      */
     #[Computed]
     public function cashSession(): ?CashSession
     {
-        return app(PosTerminalService::class)->current()?->openCashSession?->load('user');
+        return app(PosTerminalService::class)->unlockedCashSession();
     }
 
     #[Computed]

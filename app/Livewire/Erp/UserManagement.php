@@ -7,6 +7,7 @@ use App\Exceptions\UserAccountException;
 use App\Livewire\Concerns\RequiresAdmin;
 use App\Models\PosTerminal;
 use App\Models\User;
+use App\Services\CashSessionService;
 use App\Services\PosTerminalService;
 use App\Services\UserService;
 use Illuminate\Database\Eloquent\Collection;
@@ -190,6 +191,8 @@ class UserManagement extends Component
     #[Computed]
     public function terminals(): Collection
     {
+        app(CashSessionService::class)->closeIdle();
+
         return PosTerminal::query()->with(['enabledBy', 'openCashSession.user'])->orderBy('name')->get();
     }
 

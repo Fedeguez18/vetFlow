@@ -109,7 +109,10 @@ class DailyAudit extends Component
     #[Computed]
     public function cashSessions(): Collection
     {
-        return app(CashSessionService::class)->forDay($this->day);
+        $cashSessions = app(CashSessionService::class);
+        $cashSessions->closeIdle();
+
+        return $cashSessions->forDay($this->day);
     }
 
     public function reviewCashSession(int $id, CashSessionService $cashSessions): void

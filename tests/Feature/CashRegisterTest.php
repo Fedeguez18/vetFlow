@@ -13,8 +13,10 @@ use App\Models\Producer;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
+use App\Services\CashSessionService;
 use App\Services\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cookie;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -212,5 +214,119 @@ class CashRegisterTest extends TestCase
             ->assertDispatched('toast', type: 'error');
 
         $this->assertTrue($cashSession->user->fresh()->is_active);
+    }
+
+    public function test_closing_the_browser_locks_the_pos_and_the_user_resumes_their_caja_with_the_code(): void
+    {
+        $seller = User::factory()->create(['name' => 'Laura']);
+        $code = app(UserService::class)->generatePosCode($seller);
+        $cashSession = app(CashSessionService::class)->open($this->onPosTerminal(), $seller);
+
+        $this->get(route('pos.desk'))->assertRedirect(route('pos.lock'));
+
+        Livewire::test(PosLock::class)
+            ->assertSee('Caja de Laura abierta')
+            ->set('code', $code)
+            ->call('unlock')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('pos.desk'));
+
+        $this->assertTrue(Cookie::hasQueued(CashSession::UNLOCK_COOKIE));
+        $this->assertTrue($cashSession->fresh()->isOpen());
+        $this->assertSame(1, CashSession::count());
+    }
+
+    public function test_another_user_closes_the_caja_left_open_counting_the_cash_and_opens_theirs(): void
+    {
+        $laura = User::factory()->create(['name' => 'Laura']);
+        $diego = User::factory()->create(['name' => 'Diego']);
+        $code = app(UserService::class)->generatePosCode($diego);
+        $previous = app(CashSessionService::class)->open($terminal = $this->onPosTerminal(), $laura, 1000);
+        Sale::factory()->for($previous)->create(['type' => 'contado', 'payment_method' => 'efectivo', 'total' => 500, 'user_id' => $laura->id]);
+
+        Livewire::test(PosLock::class)
+            ->set('code', $code)
+            ->call('unlock')
+            ->assertSee('La caja de')
+            ->assertDontSee('1.500')
+            ->call('closePreviousCashRegister')
+            ->assertHasErrors('declaredCash')
+            ->set('declaredCash', '1.400')
+            ->call('closePreviousCashRegister')
+            ->assertHasNoErrors()
+            ->assertSee('Caja de Laura cerrada y enviada a administración.')
+            ->assertSee('Abrir caja')
+            ->call('openCashRegister')
+            ->assertRedirect(route('pos.desk'));
+
+        $previous->refresh();
+        $this->assertFalse($previous->isOpen());
+        $this->assertFalse($previous->closed_automatically);
+        $this->assertTrue($diego->is($previous->closer));
+        $this->assertSame('1500.00', $previous->expected_cash);
+        $this->assertSame(-100.0, $previous->difference());
+        $this->assertTrue($diego->is($terminal->fresh()->openCashSession->user));
+    }
+
+    public function test_a_caja_idle_for_four_hours_closes_by_itself_without_a_cash_count(): void
+    {
+        $cashSession = $this->openCashRegister(openingAmount: 1000);
+        $openedAt = $cashSession->last_activity_at;
+
+        $this->travel(CashSessionService::IDLE_HOURS)->hours();
+        $this->travel(1)->minutes();
+
+        $this->get(route('pos.desk'))->assertRedirect(route('pos.lock'));
+
+        $cashSession->refresh();
+        $this->assertFalse($cashSession->isOpen());
+        $this->assertTrue($cashSession->closed_automatically);
+        $this->assertTrue($openedAt->copy()->addHours(CashSessionService::IDLE_HOURS)->equalTo($cashSession->closed_at));
+        $this->assertSame('1000.00', $cashSession->expected_cash);
+        $this->assertNull($cashSession->declared_cash);
+        $this->assertNull($cashSession->difference());
+    }
+
+    public function test_using_the_pos_keeps_the_caja_open(): void
+    {
+        $cashSession = $this->openCashRegister();
+        $product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 10]);
+        $pos = Livewire::test(PosDesk::class);
+
+        $this->travel(CashSessionService::IDLE_HOURS - 1)->hours();
+        $pos->call('addProduct', $product->id);
+        $this->travel(CashSessionService::IDLE_HOURS - 1)->hours();
+
+        $this->get(route('pos.desk'))->assertOk();
+        $this->assertTrue($cashSession->fresh()->isOpen());
+    }
+
+    public function test_an_idle_caja_on_another_terminal_does_not_block_its_user(): void
+    {
+        $seller = User::factory()->create();
+        $forgotten = app(CashSessionService::class)->open($this->onPosTerminal(), $seller);
+
+        $this->travel(CashSessionService::IDLE_HOURS + 1)->hours();
+
+        $cashSession = app(CashSessionService::class)->open($this->onPosTerminal(), $seller);
+
+        $this->assertTrue($forgotten->fresh()->closed_automatically);
+        $this->assertTrue($cashSession->isOpen());
+    }
+
+    public function test_the_audit_shows_the_automatic_closing_without_a_cash_count(): void
+    {
+        $this->withoutVite();
+        CashSession::factory()->create([
+            'opening_amount' => 1000,
+            'closed_at' => now(),
+            'expected_cash' => 1000,
+            'closed_automatically' => true,
+        ]);
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->get('/erp/auditoria')->assertOk()
+            ->assertSee('Cierre automático, sin arqueo')
+            ->assertDontSee('$ -1.000,00');
     }
 }

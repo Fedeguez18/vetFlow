@@ -14,7 +14,7 @@
     @livewireStyles
 </head>
 <body class="min-h-full bg-[#F4F6F5] font-sans text-slate-800 antialiased">
-    @php($cashSession = app(\App\Services\PosTerminalService::class)->current()?->openCashSession?->load('user'))
+    @php($cashSession = app(\App\Services\PosTerminalService::class)->unlockedCashSession())
 
     {{-- Terminal Mostrador (PC 1): sin navegación hacia el ERP. --}}
     <header class="sticky top-0 z-40 border-b border-slate-200 bg-white">
