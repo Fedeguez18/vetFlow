@@ -158,29 +158,7 @@ class StockService
     public function consumeForSale(Product $product, int $quantity, Sale $sale, ?int $userId = null): void
     {
         if ($product->tracks_expiry) {
-            $remaining = $quantity;
-
-            $lots = $product->lots()
-                ->sellable()
-                ->orderBy('expiration_date')
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
-
-            foreach ($lots as $lot) {
-                if ($remaining === 0) {
-                    break;
-                }
-
-                /** @var Lot $lot */
-                $taken = min($lot->quantity, $remaining);
-                $lot->decrement('quantity', $taken);
-                $remaining -= $taken;
-
-                $this->recordSale($product, $sale, -$taken, $lot->id, $userId);
-            }
-
-            if ($remaining > 0) {
+            if ($this->takeFromLots($product, $quantity, $sale, $userId) > 0) {
                 throw new StockException("Los lotes vigentes de {$product->name} no alcanzan para {$quantity} unidades (los lotes vencidos no se venden).");
             }
         } else {
@@ -188,6 +166,61 @@ class StockService
         }
 
         $product->decrement('stock', $quantity);
+    }
+
+    /**
+     * Discount a sale made without internet. It already happened at the mostrador, so instead of
+     * failing it takes what there is (sellable lots first to expire) and returns the missing units.
+     */
+    public function consumeAvailableForSale(Product $product, int $quantity, Sale $sale, ?int $userId = null): int
+    {
+        if ($product->tracks_expiry) {
+            $taken = $quantity - $this->takeFromLots($product, $quantity, $sale, $userId);
+        } else {
+            $taken = min($quantity, max(0, (int) $product->stock));
+
+            if ($taken > 0) {
+                $this->recordSale($product, $sale, -$taken, null, $userId);
+            }
+        }
+
+        if ($taken > 0) {
+            $product->decrement('stock', $taken);
+        }
+
+        return $quantity - $taken;
+    }
+
+    /**
+     * Take units from the sellable lots, the first to expire first.
+     *
+     * @return int units the lots could not cover
+     */
+    protected function takeFromLots(Product $product, int $quantity, Sale $sale, ?int $userId): int
+    {
+        $remaining = $quantity;
+
+        $lots = $product->lots()
+            ->sellable()
+            ->orderBy('expiration_date')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($lots as $lot) {
+            if ($remaining === 0) {
+                break;
+            }
+
+            /** @var Lot $lot */
+            $taken = min($lot->quantity, $remaining);
+            $lot->decrement('quantity', $taken);
+            $remaining -= $taken;
+
+            $this->recordSale($product, $sale, -$taken, $lot->id, $userId);
+        }
+
+        return $remaining;
     }
 
     public function recordPrice(Product $product, ?int $userId = null): PriceHistory

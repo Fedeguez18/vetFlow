@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountPdfController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\CashAuditExportController;
 use App\Http\Controllers\InventoryExportController;
+use App\Http\Controllers\PosOfflineController;
 use App\Http\Controllers\StockImportTemplateController;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
@@ -48,6 +49,12 @@ Route::middleware('terminal')->group(function () {
     Route::get('/pos', PosDesk::class)->name('pos.desk');
     Route::get('/pos/caja', PosLock::class)->name('pos.lock');
     Route::get('/pos/remitos/{sale}/pdf', [AccountPdfController::class, 'posRemito'])->name('pos.remito-pdf');
+
+    // Selling without internet: page saved by the browser, its data, and the upload when the connection is back.
+    Route::get('/pos/sin-conexion', [PosOfflineController::class, 'page'])->name('pos.offline');
+    Route::get('/pos/sin-conexion/datos', [PosOfflineController::class, 'snapshot'])->name('pos.offline.snapshot');
+    Route::get('/pos/sin-conexion/token', [PosOfflineController::class, 'token'])->name('pos.offline.token');
+    Route::post('/pos/sin-conexion/ventas', [PosOfflineController::class, 'sync'])->middleware('throttle:120,1')->name('pos.offline.sync');
 });
 
 Route::middleware(['auth', 'active'])->group(function () {

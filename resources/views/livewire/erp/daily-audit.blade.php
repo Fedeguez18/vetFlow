@@ -221,6 +221,15 @@
                         <td class="whitespace-nowrap px-4 py-3">
                             <span class="font-mono font-medium text-slate-800">{{ $entry['voucher'] }}</span>
                             <span class="ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $kinds[$entry['kind']][1] }}">{{ $kinds[$entry['kind']][0] }}</span>
+                            @if ($entry['offline'])
+                                <span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-300" title="Hecha en el mostrador sin internet y subida al volver la conexión">Sin conexión</span>
+                            @endif
+                            @if ($entry['needs_review'])
+                                <span class="ml-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-rose-600/20">Revisar</span>
+                            @endif
+                            @if ($entry['notes'])
+                                <span class="mt-1 block max-w-md whitespace-normal text-xs text-slate-500">{!! nl2br(e($entry['notes'])) !!}</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-slate-700">{{ $entry['client'] }}</td>
                         <td @class(['whitespace-nowrap px-4 py-3', 'text-slate-700' => $entry['method'], 'italic text-slate-400' => ! $entry['method']])>

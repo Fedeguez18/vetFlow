@@ -45,7 +45,7 @@ class CashAuditService
     /**
      * Every sale and account payment from the start of $from to the end of $to (or of $from alone), in chronological order.
      *
-     * @return Collection<int, array{key: string, time: CarbonImmutable, kind: string, voucher: string, client: string, method: ?string, amount: float, collected: float, user: ?string, user_role: ?string}>
+     * @return Collection<int, array{key: string, time: CarbonImmutable, kind: string, voucher: string, client: string, method: ?string, amount: float, collected: float, user: ?string, user_role: ?string, offline: bool, needs_review: bool, notes: ?string}>
      */
     public function entries(CarbonImmutable $from, ?CarbonImmutable $to = null): Collection
     {
@@ -63,6 +63,9 @@ class CashAuditService
                 'collected' => $sale->type === 'remito' ? 0.0 : (float) $sale->total,
                 'user' => $sale->user?->name,
                 'user_role' => $sale->user?->role,
+                'offline' => $sale->wasMadeOffline(),
+                'needs_review' => $sale->needs_review,
+                'notes' => $sale->sync_notes,
             ]);
 
         $payments = Payment::query()->with(['producer', 'user'])->whereBetween('created_at', $range)->get()
@@ -77,6 +80,9 @@ class CashAuditService
                 'collected' => (float) $payment->amount,
                 'user' => $payment->user?->name,
                 'user_role' => $payment->user?->role,
+                'offline' => false,
+                'needs_review' => false,
+                'notes' => null,
             ]);
 
         return $sales->concat($payments)->sortBy([['time', 'asc'], ['key', 'asc']])->values();

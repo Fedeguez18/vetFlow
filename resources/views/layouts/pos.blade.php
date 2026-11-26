@@ -10,10 +10,11 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/pos-offline.js'])
     @livewireStyles
 </head>
-<body class="min-h-full bg-[#F4F6F5] font-sans text-slate-800 antialiased">
+{{-- data-pos-page: pos-offline.js keeps this PC ready to sell without internet. --}}
+<body data-pos-page="desk" class="min-h-full bg-[#F4F6F5] font-sans text-slate-800 antialiased">
     @php($cashSession = app(\App\Services\PosTerminalService::class)->unlockedCashSession())
 
     {{-- Terminal Mostrador (PC 1): sin navegación hacia el ERP. --}}

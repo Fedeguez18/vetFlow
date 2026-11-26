@@ -22,6 +22,8 @@ class EnsurePosTerminal
     public function handle(Request $request, Closure $next): Response
     {
         if (! $this->terminals->current()) {
+            abort_if($request->expectsJson(), 403, 'Esta PC no está habilitada como terminal de mostrador.');
+
             return redirect()->route('pos.setup');
         }
 

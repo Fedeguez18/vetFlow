@@ -11,6 +11,10 @@
     --breakpoint-3xl: 112.5rem;
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 /* Short windows (a 1366x768 notebook with the browser bars): the POS ticket panel tightens to fit. */
 @custom-variant short (@media (max-height: 50rem));
 

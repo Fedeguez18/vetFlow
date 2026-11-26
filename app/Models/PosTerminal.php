@@ -62,6 +62,14 @@ class PosTerminal extends Model
     }
 
     /**
+     * @return HasMany<VoucherBlock, $this>
+     */
+    public function voucherBlocks(): HasMany
+    {
+        return $this->hasMany(VoucherBlock::class);
+    }
+
+    /**
      * The caja currently open on this terminal, if any.
      *
      * @return HasOne<CashSession, $this>

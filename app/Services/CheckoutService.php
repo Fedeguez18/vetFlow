@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\CreditLimitException;
+use App\Models\PosTerminal;
 use App\Models\Producer;
 use App\Models\Product;
 use App\Models\Sale;
@@ -12,16 +13,20 @@ use Illuminate\Support\Facades\DB;
 
 class CheckoutService
 {
-    public function __construct(protected StockService $stock) {}
+    public function __construct(
+        protected StockService $stock,
+        protected VoucherBlockService $vouchers,
+    ) {}
 
     /**
      * Process a checkout: lock each product, validate stock, create the sale with its items,
      * discount stock (FEFO by lot) recording a "venta" movement and, for remitos, charge the
      * total to the producer's balance (any saldo a favor pays the remito right away). A remito
-     * above the producer's credit limit needs "allow_over_limit".
+     * above the producer's credit limit needs "allow_over_limit". A sale from a POS terminal takes its number from the
+     * terminal's own block (see VoucherBlockService).
      *
      * @param  array<int, array{product_id: int, quantity: int}>  $cartItems
-     * @param  array{type: string, producer_id?: int|null, payment_method?: string|null, voucher_number?: string|null, user_id?: int|null, cash_session_id?: int|null, allow_over_limit?: bool}  $checkoutData
+     * @param  array{type: string, producer_id?: int|null, payment_method?: string|null, voucher_number?: string|null, pos_terminal?: PosTerminal|null, user_id?: int|null, cash_session_id?: int|null, allow_over_limit?: bool}  $checkoutData
      *
      * @throws CreditLimitException
      * @throws Exception
@@ -94,7 +99,9 @@ class CheckoutService
             $paid = $type === 'contado' ? $total : $this->creditToApply($producer, $total);
 
             $sale = Sale::create([
-                'voucher_number' => $checkoutData['voucher_number'] ?? $this->reserveVoucherNumber($type),
+                'voucher_number' => $checkoutData['voucher_number'] ?? (isset($checkoutData['pos_terminal'])
+                    ? $this->vouchers->take($checkoutData['pos_terminal'], $type)
+                    : $this->reserveVoucherNumber($type)),
                 'type' => $type,
                 'payment_method' => $type === 'remito' ? 'cuenta_corriente' : ($checkoutData['payment_method'] ?? null),
                 'producer_id' => $producerId,
@@ -124,7 +131,7 @@ class CheckoutService
     /**
      * Saldo a favor of the producer that covers the new remito (paid in advance).
      */
-    protected function creditToApply(Producer $producer, float $total): float
+    public function creditToApply(Producer $producer, float $total): float
     {
         $creditCents = max(0, -(int) round((float) $producer->balance * 100));
 

@@ -12,6 +12,7 @@ use App\Models\Sale;
 use App\Services\CashSessionService;
 use App\Services\CheckoutService;
 use App\Services\PosTerminalService;
+use App\Services\VoucherBlockService;
 use App\Support\Pricing;
 use Exception;
 use Illuminate\Support\Collection;
@@ -311,6 +312,7 @@ class PosDesk extends Component
                 'type' => $onAccount ? 'remito' : 'contado',
                 'producer_id' => $this->producerId,
                 'payment_method' => $this->paymentMethod,
+                'pos_terminal' => $cashSession->posTerminal,
                 'user_id' => $cashSession->user_id,
                 'cash_session_id' => $cashSession->id,
                 'allow_over_limit' => $overLimit && $this->creditLimitWarning !== null,
@@ -333,6 +335,8 @@ class PosDesk extends Component
 
         $this->notify("Venta {$sale->voucher_number} registrada.".($change ? ' Cambio: '.Pricing::money($change).'.' : ''), 'success');
         $this->dispatch('print-ticket');
+        // The browser's copy for working without internet learns the number is used and refreshes the stock.
+        $this->dispatch('pos-sale-registered', voucher: $sale->voucher_number);
     }
 
     /**
@@ -393,7 +397,12 @@ class PosDesk extends Component
     #[Computed]
     public function nextVoucher(): string
     {
-        return app(CheckoutService::class)->nextVoucherNumber($this->paymentMethod === 'cuenta_corriente' ? 'remito' : 'contado');
+        $type = $this->paymentMethod === 'cuenta_corriente' ? 'remito' : 'contado';
+        $terminal = $this->cashSession?->posTerminal;
+
+        return $terminal
+            ? app(VoucherBlockService::class)->peek($terminal, $type)
+            : app(CheckoutService::class)->nextVoucherNumber($type);
     }
 
     #[Computed]

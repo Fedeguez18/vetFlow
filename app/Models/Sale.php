@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['voucher_number', 'type', 'payment_method', 'producer_id', 'total', 'paid', 'status', 'user_id', 'cash_session_id'])]
+#[Fillable(['voucher_number', 'type', 'payment_method', 'producer_id', 'total', 'paid', 'status', 'user_id', 'cash_session_id', 'offline_uuid', 'synced_at', 'needs_review', 'sync_notes'])]
 class Sale extends Model
 {
     /** @use HasFactory<SaleFactory> */
@@ -44,7 +44,17 @@ class Sale extends Model
         return [
             'total' => 'decimal:2',
             'paid' => 'decimal:2',
+            'synced_at' => 'datetime',
+            'needs_review' => 'boolean',
         ];
+    }
+
+    /**
+     * Made by the POS without internet and uploaded later.
+     */
+    public function wasMadeOffline(): bool
+    {
+        return $this->synced_at !== null;
     }
 
     /**
