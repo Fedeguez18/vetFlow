@@ -34,7 +34,7 @@ class CashAuditExportService
         $line(['Balance', 'Monto']);
         $line(['Total cobrado', $number($summary['collected'])]);
         $line(['Dinero en efectivo', $number($summary['cash'])]);
-        $line(['QR / Transferencia', $number($summary['bank'])]);
+        $line(['Mercado Pago / Transferencia', $number($summary['bank'])]);
         $line(['']);
         $line(['Ingresos por medio de pago', 'Monto']);
         foreach ($summary['by_method'] as $method => $amount) {

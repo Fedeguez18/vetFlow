@@ -52,6 +52,37 @@ class CashAuditTest extends TestCase
         $this->assertSame(['qr' => 2500.5, 'efectivo' => 1000.0, 'tarjeta' => 499.5, 'transferencia' => 300.0], $summary['by_method']);
     }
 
+    public function test_the_pos_charges_through_mercado_pago_and_no_longer_takes_qr_or_cards(): void
+    {
+        $this->withoutVite();
+        $product = Product::factory()->create(['is_active' => true, 'tracks_expiry' => false, 'stock' => 10, 'price' => 1500]);
+        $this->openCashRegister();
+
+        Livewire::test(PosDesk::class)
+            ->assertSee('Mercado Pago')
+            ->assertDontSee('QR / Transf.')
+            ->assertDontSee('Tarjetas')
+            ->call('addProduct', $product->id)
+            ->set('paymentMethod', 'tarjeta')
+            ->call('confirm')
+            ->assertSet('alert', 'Elegí un medio de cobro.')
+            ->set('paymentMethod', 'qr')
+            ->call('confirm')
+            ->assertSet('alert', 'Elegí un medio de cobro.')
+            ->set('paymentMethod', 'mercado_pago')
+            ->call('confirm');
+
+        $this->assertSame('mercado_pago', Sale::sole()->payment_method);
+
+        $summary = app(CashAuditService::class)->summary(app(CashAuditService::class)->entries(CarbonImmutable::today()));
+        $this->assertSame(0.0, $summary['cash']);
+        $this->assertSame(1500.0, $summary['bank']);
+        $this->assertSame(['mercado_pago' => 1500.0], $summary['by_method']);
+
+        $this->actingAs(User::factory()->admin()->create());
+        $this->get('/erp/auditoria')->assertOk()->assertSee('Mercado Pago / Transferencia');
+    }
+
     public function test_each_movement_shows_the_user_who_made_it(): void
     {
         $this->withoutVite();
@@ -111,7 +142,7 @@ class CashAuditTest extends TestCase
         $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
         $this->assertStringContainsString("\"Total cobrado\";3800,50\n", $csv);
         $this->assertStringContainsString("\"Dinero en efectivo\";1000,00\n", $csv);
-        $this->assertStringContainsString("\"QR / Transferencia\";2800,50\n", $csv);
+        $this->assertStringContainsString("\"Mercado Pago / Transferencia\";2800,50\n", $csv);
         $this->assertStringContainsString("\"Tickets contado\";3500,50;2\n", $csv);
         $this->assertStringContainsString('R-00000001;Remito;"Estancia La Josefina";"Cuenta Corriente";"Sin registrar";;9000,00;0,00', $csv);
         $this->assertStringContainsString($payment->voucher_number.';"Cobro Cta. Cte."', $csv);

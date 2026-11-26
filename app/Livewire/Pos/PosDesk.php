@@ -25,10 +25,13 @@ use Livewire\Component;
 #[Title('Mostrador POS')]
 class PosDesk extends Component
 {
+    /**
+     * Ways a sale can be paid at the mostrador. There is no posnet: everything that isn't cash or on account goes
+     * through Mercado Pago. Sales with the older "qr" and "tarjeta" keep their label in CashAuditService::METHODS.
+     */
     public const PAYMENT_METHODS = [
         'efectivo' => 'Efectivo',
-        'qr' => 'QR/Transferencia',
-        'tarjeta' => 'Tarjetas',
+        'mercado_pago' => 'Mercado Pago',
         'cuenta_corriente' => 'Cuenta Corriente (A Remito)',
     ];
 

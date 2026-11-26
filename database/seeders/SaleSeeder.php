@@ -21,15 +21,15 @@ class SaleSeeder extends Seeder
     public const SALES = [
         [6, '10:20', 'efectivo', null, ['AGU-18G-100' => 2, 'TER-DIG-01' => 1]],
         [5, '11:05', 'cuenta_corriente', 'josefina', ['VAC-AFT-050' => 4, 'CAR-SEN-100' => 2]],
-        [4, '16:40', 'qr', null, ['COL-ANT-XL' => 1, 'ACC-BAL-XL' => 1]],
+        [4, '16:40', 'mercado_pago', null, ['COL-ANT-XL' => 1, 'ACC-BAL-XL' => 1]],
         [3, '09:30', 'cuenta_corriente', 'ombu', ['SAL-BOV-25K' => 3]],
-        [2, '12:15', 'tarjeta', null, ['CAR-BOT-025' => 2, 'AGU-18G-100' => 1]],
+        [2, '12:15', 'mercado_pago', null, ['CAR-BOT-025' => 2, 'AGU-18G-100' => 1]],
         [1, '17:50', 'cuenta_corriente', 'josefina', ['VAC-AFT-050' => 2, 'SAL-BOV-25K' => 2]],
         [0, null, 'efectivo', null, ['SAL-BOV-25K' => 1]],
-        [0, null, 'qr', null, ['CAR-SEN-100' => 1, 'AGU-18G-100' => 1]],
-        [0, null, 'tarjeta', null, ['ACC-BAL-XL' => 2]],
+        [0, null, 'mercado_pago', null, ['CAR-SEN-100' => 1, 'AGU-18G-100' => 1]],
+        [0, null, 'mercado_pago', null, ['ACC-BAL-XL' => 2]],
         [0, null, 'efectivo', null, ['COL-ANT-XL' => 1]],
-        [0, null, 'qr', null, ['VAC-AFT-050' => 1]],
+        [0, null, 'mercado_pago', null, ['VAC-AFT-050' => 1]],
         [0, null, 'cuenta_corriente', 'josefina', ['CAR-BOT-025' => 3]],
     ];
 

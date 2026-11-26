@@ -88,7 +88,7 @@
                     <span class="text-3xl font-bold tabular-nums text-emerald-800">{{ $money($kpis['cash_today']) }}</span>
                     <span class="text-xs font-semibold text-emerald-700/70">ARS</span>
                 </div>
-                <span class="mt-1.5 block text-[11px] font-bold uppercase tracking-wide text-emerald-700">Efectivo + QR + Tarjetas</span>
+                <span class="mt-1.5 block text-[11px] font-bold uppercase tracking-wide text-emerald-700">Efectivo + Mercado Pago</span>
             </div>
         </div>
     </div>

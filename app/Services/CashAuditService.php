@@ -15,6 +15,7 @@ class CashAuditService
      */
     public const METHODS = [
         'efectivo' => 'Efectivo',
+        'mercado_pago' => 'Mercado Pago',
         'qr' => 'QR/Transferencia',
         'transferencia' => 'Transferencia',
         'tarjeta' => 'Tarjeta',
@@ -23,9 +24,9 @@ class CashAuditService
     ];
 
     /**
-     * Methods that land in the bank account.
+     * Methods that land in an account instead of the cash drawer.
      */
-    public const BANK_METHODS = ['qr', 'transferencia'];
+    public const BANK_METHODS = ['mercado_pago', 'qr', 'transferencia'];
 
     /**
      * The audited day: the given Y-m-d date, or today when it is empty, invalid or in the future.

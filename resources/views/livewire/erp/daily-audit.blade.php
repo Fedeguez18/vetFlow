@@ -14,7 +14,7 @@
     $kpis = [
         [$isToday ? 'Total cobrado hoy' : 'Total cobrado', $money($summary['collected']), 'Ventas de contado + cobros de cuenta corriente', 'from-emerald-500 to-teal-500 text-white', 'text-emerald-50'],
         ['Dinero en efectivo', $money($summary['cash']), 'Caja física', 'bg-white text-slate-900', 'text-slate-500'],
-        ['QR / Transferencia', $money($summary['bank']), 'Ingresos en cuenta bancaria', 'bg-white text-slate-900', 'text-slate-500'],
+        ['Mercado Pago / Transferencia', $money($summary['bank']), 'Ingresos en cuenta','bg-white text-slate-900', 'text-slate-500'],
         ['Comprobantes emitidos', $summary['vouchers'], $summary['tickets'].' '.($summary['tickets'] === 1 ? 'ticket' : 'tickets').' · '.$summary['remitos'].' '.($summary['remitos'] === 1 ? 'remito' : 'remitos'), 'bg-white text-slate-900', 'text-slate-500'],
     ];
 @endphp
@@ -279,7 +279,7 @@
         <hr>
         <div class="row total"><span>TOTAL COBRADO</span><span>{{ $money($summary['collected']) }}</span></div>
         <div class="row"><span>Efectivo en caja</span><span>{{ $money($summary['cash']) }}</span></div>
-        <div class="row"><span>QR / Transferencia</span><span>{{ $money($summary['bank']) }}</span></div>
+        <div class="row"><span>Mercado Pago / Transf.</span><span>{{ $money($summary['bank']) }}</span></div>
         <hr>
         <h2>Comprobantes</h2>
         <div class="row"><span>Tickets contado ({{ $summary['tickets'] }})</span><span>{{ $money($summary['collected'] - $summary['payments_amount']) }}</span></div>

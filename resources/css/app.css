@@ -6,4 +6,25 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Wide enough for the ERP header to fit the logo, every tab and the user on one line. */
+    --breakpoint-3xl: 112.5rem;
+}
+
+/* Short windows (a 1366x768 notebook with the browser bars): the POS ticket panel tightens to fit. */
+@custom-variant short (@media (max-height: 50rem));
+
+/*
+ * Firefox before 127 (ESR 115 is the last one on Windows 7/8) doesn't understand the "in oklab"
+ * interpolation Tailwind puts in gradients: it drops the whole background and buttons with white
+ * text on a gradient become invisible. Plain sRGB gradients there.
+ */
+@supports not (background-image: linear-gradient(in oklab, red, red)) {
+    .bg-gradient-to-r {
+        --tw-gradient-position: to right;
+    }
+
+    .bg-gradient-to-br {
+        --tw-gradient-position: to bottom right;
+    }
 }

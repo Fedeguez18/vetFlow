@@ -125,7 +125,7 @@ class CashRegisterTest extends TestCase
 
         $pos = Livewire::test(PosDesk::class);
         $pos->call('addProduct', $product->id)->set('paymentMethod', 'efectivo')->call('confirm');
-        $pos->call('addProduct', $product->id)->set('paymentMethod', 'qr')->call('confirm');
+        $pos->call('addProduct', $product->id)->set('paymentMethod', 'mercado_pago')->call('confirm');
         $pos->call('addProduct', $product->id)->call('selectProducer', $producer->id)->set('paymentMethod', 'cuenta_corriente')->call('confirm');
 
         $this->assertSame(3, $cashSession->sales()->where('user_id', $seller->id)->count());

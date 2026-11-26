@@ -6,8 +6,7 @@
     $payButtons = [
         'cuenta_corriente' => 'Cta. Corriente',
         'efectivo' => 'Efectivo',
-        'qr' => 'QR / Transf.',
-        'tarjeta' => 'Tarjetas',
+        'mercado_pago' => 'Mercado Pago',
     ];
 
     $onAccount = $paymentMethod === 'cuenta_corriente';
@@ -198,7 +197,7 @@
 
     {{-- Ticket panel --}}
     <aside class="flex w-full shrink-0 flex-col border-t border-slate-200 bg-white lg:w-[30%] lg:min-w-[22rem] lg:border-l lg:border-t-0">
-        <div class="space-y-4 p-5 pb-4">
+        <div class="space-y-4 p-5 pb-4 short:space-y-3 short:p-4 short:pb-3">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Ticket de venta</span>
@@ -232,7 +231,7 @@
             <span>Productos</span>
             <span>Total</span>
         </div>
-        <div class="max-h-96 min-h-32 flex-1 overflow-y-auto px-5 lg:max-h-none">
+        <div class="max-h-96 min-h-32 flex-1 overflow-y-auto px-5 lg:max-h-none short:min-h-24">
             @forelse ($cart as $line)
                 <div wire:key="cart-{{ $line['product_id'] }}" class="flex items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
                     <div class="min-w-0 flex-1">
@@ -266,7 +265,7 @@
         </div>
 
         {{-- Totals, payment and confirm --}}
-        <div class="shrink-0 space-y-3 border-t border-slate-200 p-5">
+        <div class="shrink-0 space-y-3 border-t border-slate-200 p-5 short:space-y-2 short:p-4">
             @if ($onAccount)
                 <div class="flex items-center justify-between gap-2 rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-[#0F2A26]">
                     <span>
@@ -304,13 +303,14 @@
                 @endif
             @endif
 
-            <div class="space-y-1 text-sm">
+            {{-- Same amount as the total (no discounts yet): the first thing to go on a short screen. --}}
+            <div class="space-y-1 text-sm short:hidden">
                 <div class="flex justify-between text-slate-500">
                     <span>Subtotal</span>
                     <span class="tabular-nums">{{ $money($total) }}</span>
                 </div>
             </div>
-            <div class="flex items-baseline justify-between border-t border-slate-100 pt-2">
+            <div class="flex items-baseline justify-between border-t border-slate-100 pt-2 short:border-t-0 short:pt-0">
                 <span class="font-semibold text-slate-700">{{ $onAccount ? 'Total Remito' : 'Total' }}</span>
                 <span class="text-3xl font-bold tabular-nums tracking-tight text-slate-900">{{ $money($total) }}</span>
             </div>
@@ -322,7 +322,8 @@
                         wire:key="pay-{{ $key }}"
                         wire:click="$set('paymentMethod', '{{ $key }}')"
                         @class([
-                            'flex flex-col items-center justify-center gap-1 rounded-[10px] border px-2 py-3 text-xs font-semibold transition-colors',
+                            'flex flex-col items-center justify-center gap-1 rounded-[10px] border px-2 py-3 text-xs font-semibold transition-colors short:py-2',
+                            'col-span-2' => $key === 'mercado_pago',
                             'border-[#0F2A26] bg-[#0F2A26] text-white shadow-sm' => $paymentMethod === $key,
                             'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900' => $paymentMethod !== $key,
                         ])
@@ -344,7 +345,7 @@
                             autocomplete="off"
                             placeholder="Monto recibido"
                             @class([
-                                'w-full rounded-[10px] border py-3 pl-8 pr-28 text-lg font-semibold tabular-nums focus:outline-none focus:ring-4',
+                                'w-full rounded-[10px] border py-3 pl-8 pr-28 text-lg font-semibold tabular-nums focus:outline-none focus:ring-4 short:py-2',
                                 'border-rose-400 bg-rose-50 text-rose-700 focus:ring-rose-500/15' => $receivedInvalid,
                                 'border-slate-200 bg-white text-slate-900 focus:border-[#0F2A26] focus:ring-[#0F2A26]/10' => ! $receivedInvalid,
                             ])
@@ -369,7 +370,7 @@
                     wire:click="clearCart"
                     wire:confirm="¿Vaciar el ticket?"
                     @disabled($cart === [])
-                    class="flex h-14 shrink-0 items-center justify-center px-4 text-sm font-semibold rounded-[10px] border border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    class="flex h-14 shrink-0 items-center justify-center px-4 text-sm font-semibold rounded-[10px] border border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 short:h-12"
                 >
                     Vaciar
                 </button>
@@ -380,7 +381,7 @@
                     wire:loading.attr="disabled"
                     wire:target="confirm"
                     @disabled($cart === [] || $receivedInvalid || ($onAccount && ! $producer))
-                    class="flex h-14 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[#0F2A26] px-4 font-bold text-white shadow-md transition hover:bg-[#1A3D37] disabled:cursor-not-allowed disabled:opacity-40"
+                    class="flex h-14 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[#0F2A26] px-4 font-bold text-white shadow-md transition hover:bg-[#1A3D37] disabled:cursor-not-allowed disabled:opacity-40 short:h-12"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
