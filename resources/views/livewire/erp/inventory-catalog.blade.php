@@ -150,17 +150,18 @@
             <table class="w-full text-sm">
                 <thead class="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     <tr>
-                        <th class="px-5 py-3">Código / SKU</th>
-                        <th class="px-5 py-3">Artículo / Droga</th>
-                        <th class="px-5 py-3">Rubro</th>
+                        <th class="px-3 2xl:px-5 py-3">Código / SKU</th>
+                        <th class="px-3 2xl:px-5 py-3">Artículo / Droga</th>
+                        <th class="px-3 2xl:px-5 py-3">Rubro</th>
+                        <th class="whitespace-nowrap px-3 2xl:px-5 py-3 text-right">Precio costo</th>
                         @foreach (InventoryCatalog::INLINE_PERCENTS as $percentLabel)
                             <th class="whitespace-nowrap px-3 py-3 text-right">{{ $percentLabel }}</th>
                         @endforeach
-                        <th class="px-5 py-3 text-right">Precio venta</th>
-                        <th class="px-5 py-3 text-center">Existencias</th>
-                        <th class="px-5 py-3">Vencimiento lote</th>
-                        <th class="px-5 py-3">Estado alerta</th>
-                        <th class="px-5 py-3 text-right">Acciones</th>
+                        <th class="px-3 2xl:px-5 py-3 text-right">Precio venta</th>
+                        <th class="px-3 2xl:px-5 py-3 text-center">Existencias</th>
+                        <th class="px-3 2xl:px-5 py-3">Vencimiento lote</th>
+                        <th class="px-3 2xl:px-5 py-3">Estado alerta</th>
+                        <th class="px-3 2xl:px-5 py-3 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -170,11 +171,11 @@
                             $status = $product->expiry_status;
                         @endphp
                         <tr wire:key="product-{{ $product->id }}" @class(['hover:bg-slate-50/60', 'opacity-50' => ! $product->is_active])>
-                            <td class="whitespace-nowrap px-5 py-4 font-mono text-xs text-slate-500">
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4 font-mono text-xs text-slate-500">
                                 <span class="block font-semibold text-slate-600">{{ $product->sku ?? '—' }}</span>
                                 <span class="block">{{ $product->barcode ?? 'Sin código' }}</span>
                             </td>
-                            <td class="px-5 py-4">
+                            <td class="px-3 2xl:px-5 py-4">
                                 <span class="block font-bold text-slate-900">{{ $product->name }}</span>
                                 @if ($product->description)
                                     <span class="block text-[11px] uppercase tracking-wide text-slate-400">{{ $product->description }}</span>
@@ -183,12 +184,51 @@
                                     <span class="mt-0.5 inline-block rounded bg-slate-200 px-1.5 text-[10px] font-semibold uppercase text-slate-600">Inactivo</span>
                                 @endunless
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4">
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4">
                                 @if ($product->category)
                                     <x-category-badge :category="$product->category" />
                                 @else
                                     <span class="text-slate-400">—</span>
                                 @endif
+                            </td>
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4 text-right">
+                                {{-- Double click to edit; Enter or leaving the field saves, Escape cancels. The key includes the stored cost so the cell is replaced when the server changes it. --}}
+                                <div
+                                    wire:key="cost-{{ $product->id }}-{{ $product->cost_price }}"
+                                    x-data="{ editing: false, saving: false }"
+                                    class="ml-auto w-28"
+                                >
+                                    <span
+                                        x-show="! editing"
+                                        x-on:dblclick="editing = true; $nextTick(() => { $refs.cost.focus(); $refs.cost.select() })"
+                                        title="Doble clic para editar el costo (recalcula el precio final)"
+                                        class="block cursor-text select-none rounded-lg border border-transparent px-2 py-1 text-right font-mono text-sm tabular-nums text-slate-700 hover:border-slate-200 hover:bg-white"
+                                    >{{ $money($product->cost_price) }}</span>
+                                    <div x-show="editing" x-cloak class="relative">
+                                        <span class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
+                                        <input
+                                            x-ref="cost"
+                                            type="text"
+                                            inputmode="decimal"
+                                            autocomplete="off"
+                                            value="{{ \App\Livewire\Forms\ProductForm::plain($product->cost_price) }}"
+                                            x-bind:disabled="saving"
+                                            x-on:keydown.enter.prevent="$el.blur()"
+                                            x-on:keydown.escape.prevent="$el.value = $el.defaultValue; editing = false"
+                                            x-on:blur="
+                                                if (! editing) return;
+                                                if ($el.value.trim() === $el.defaultValue) { editing = false; return; }
+                                                saving = true;
+                                                $wire.updateCost({{ $product->id }}, $el.value).then(value => {
+                                                    saving = false;
+                                                    if (value === null) { $el.value = $el.defaultValue; }
+                                                    editing = false;
+                                                });
+                                            "
+                                            class="w-full rounded-lg border border-[#0F2A26] bg-white py-1 pl-5 pr-2 text-right font-mono text-sm tabular-nums text-slate-900 focus:outline-none focus:ring-4 focus:ring-[#0F2A26]/10 disabled:opacity-50"
+                                        >
+                                    </div>
+                                </div>
                             </td>
                             @foreach (InventoryCatalog::INLINE_PERCENTS as $field => $percentLabel)
                                 <td class="whitespace-nowrap px-3 py-4 text-right">
@@ -209,7 +249,7 @@
                                     </div>
                                 </td>
                             @endforeach
-                            <td class="whitespace-nowrap px-5 py-4 text-right">
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4 text-right">
                                 <span class="group relative inline-block cursor-help font-mono text-base font-bold text-slate-900">
                                     {{ $money($product->price) }}
                                     <span class="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden w-52 rounded-lg bg-slate-900 p-3 text-left font-sans text-xs font-normal text-slate-200 shadow-lg group-hover:block">
@@ -217,13 +257,13 @@
                                     </span>
                                 </span>
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 text-center">
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4 text-center">
                                 <span class="rounded-md px-2 py-1 text-[11px] font-bold uppercase tabular-nums ring-1 ring-inset {{ $stockBadges[$product->stock_status] }}" title="Mínimo {{ $product->min_stock }}">Stock {{ $product->stock }}</span>
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 font-mono text-xs text-slate-600">
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4 font-mono text-xs text-slate-600">
                                 {{ $product->tracks_expiry && $product->nextLot ? $product->nextLot->expiration_date->format('d/m/Y') : '—' }}
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4">
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4">
                                 @switch ($status)
                                     @case ('expired')
                                         <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white"><span class="size-1.5 rounded-full bg-white"></span>Vencido</span>
@@ -238,7 +278,7 @@
                                         <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200"><span class="size-1.5 rounded-full bg-emerald-500"></span>Al día</span>
                                 @endswitch
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4">
+                            <td class="whitespace-nowrap px-3 2xl:px-5 py-4">
                                 <div class="flex items-center justify-end gap-2">
                                     <button
                                         type="button"
@@ -259,7 +299,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ 8 + count(InventoryCatalog::INLINE_PERCENTS) }}" class="px-5 py-16 text-center text-slate-500">
+                            <td colspan="{{ 9 + count(InventoryCatalog::INLINE_PERCENTS) }}" class="px-3 2xl:px-5 py-16 text-center text-slate-500">
                                 {{ trim($search) !== '' || $categoryId ? 'No hay artículos que coincidan con el filtro.' : 'Todavía no hay artículos cargados.' }}
                             </td>
                         </tr>

@@ -23,6 +23,57 @@ class InventoryInlinePercentTest extends TestCase
         $this->actingAs($this->user);
     }
 
+    public function test_editing_the_cost_keeps_the_percents_recalculates_the_price_and_records_the_history(): void
+    {
+        $product = Product::factory()->create(['cost_price' => 1000, 'markup_percent' => 30, 'vat_percent' => 21, 'price' => 1573]);
+
+        Livewire::test(InventoryCatalog::class)
+            ->call('updateCost', $product->id, '2.000,50')
+            ->assertReturned('$2.000,50')
+            ->assertDispatched('toast', message: "Se actualizó {$product->name}: costo \$2.000,50, precio final \$3.146,79.");
+
+        $product->refresh();
+        $this->assertEquals(2000.5, $product->cost_price);
+        $this->assertEquals(30, $product->markup_percent);
+        $this->assertEquals(21, $product->vat_percent);
+        $this->assertEquals(3146.79, $product->price);
+
+        $history = $product->priceHistories()->latest('id')->first();
+        $this->assertEquals([2000.5, 3146.79], [(float) $history->cost_price, (float) $history->price]);
+        $this->assertSame($this->user->id, $history->user_id);
+    }
+
+    public function test_an_invalid_or_unchanged_cost_leaves_the_product_alone(): void
+    {
+        $product = Product::factory()->create(['cost_price' => 1000, 'markup_percent' => 30, 'vat_percent' => 21, 'price' => 1573]);
+        $historyCount = $product->priceHistories()->count();
+
+        foreach (['-1', 'abc', '', '0'] as $value) {
+            Livewire::test(InventoryCatalog::class)
+                ->call('updateCost', $product->id, $value)
+                ->assertReturned(null);
+        }
+
+        Livewire::test(InventoryCatalog::class)
+            ->call('updateCost', $product->id, '1000')
+            ->assertReturned('$1.000')
+            ->assertNotDispatched('toast');
+
+        $product->refresh();
+        $this->assertEquals([1000, 1573], [(float) $product->cost_price, (float) $product->price]);
+        $this->assertSame($historyCount, $product->priceHistories()->count());
+    }
+
+    public function test_the_cost_cell_opens_for_editing_with_a_double_click(): void
+    {
+        $product = Product::factory()->create(['cost_price' => 2700]);
+
+        Livewire::test(InventoryCatalog::class)
+            ->assertSeeHtml('x-on:dblclick=')
+            ->assertSeeHtml('value="2700"')
+            ->assertSeeHtml("\$wire.updateCost({$product->id}, \$el.value)");
+    }
+
     public function test_editing_the_markup_recalculates_the_price_and_records_the_history(): void
     {
         $product = Product::factory()->create(['cost_price' => 1000, 'markup_percent' => 30, 'vat_percent' => 21, 'price' => 1573]);

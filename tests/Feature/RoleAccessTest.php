@@ -123,16 +123,19 @@ class RoleAccessTest extends TestCase
     public function test_prices_are_not_edited_once_the_user_is_no_longer_admin(): void
     {
         $admin = User::factory()->admin()->create();
-        $product = Product::factory()->create(['markup_percent' => 30]);
+        $product = Product::factory()->create(['markup_percent' => 30, 'cost_price' => 1000]);
         $this->actingAs($admin);
 
-        $component = Livewire::test(InventoryCatalog::class);
+        $percents = Livewire::test(InventoryCatalog::class);
+        $cost = Livewire::test(InventoryCatalog::class);
 
         $admin->update(['role' => User::ROLE_SELLER]);
 
-        $component->call('updatePercent', $product->id, 'markup_percent', '90')->assertForbidden();
+        $percents->call('updatePercent', $product->id, 'markup_percent', '90')->assertForbidden();
+        $cost->call('updateCost', $product->id, '5000')->assertForbidden();
 
         $this->assertEquals(30, $product->fresh()->markup_percent);
+        $this->assertEquals(1000, $product->fresh()->cost_price);
     }
 
     public function test_stock_is_not_adjusted_once_the_user_is_no_longer_admin(): void

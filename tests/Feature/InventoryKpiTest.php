@@ -22,6 +22,15 @@ class InventoryKpiTest extends TestCase
         $this->actingAs(User::factory()->admin()->create());
     }
 
+    public function test_the_catalog_shows_the_cost_price_between_the_category_and_the_percents(): void
+    {
+        Product::factory()->create(['name' => 'Ivermectina 1%', 'cost_price' => 12345.5]);
+
+        Livewire::test(InventoryCatalog::class)
+            ->assertSeeInOrder(['Rubro', 'Precio costo', '% Remarque', 'Precio venta'])
+            ->assertSee('$12.345,50');
+    }
+
     public function test_each_kpi_is_calculated_from_the_database(): void
     {
         // Total: 6 active + 1 inactive. Critical stock (<= 5): 0, 3 and 5 among the active ones.

@@ -141,6 +141,43 @@ class InventoryCatalog extends Component
         return Pricing::percent($percent);
     }
 
+    /**
+     * Inline edit of the cost from the table (double click): keeps the markup and VAT, recalculates the
+     * final price and records the price history. Returns the cost to show, or null when rejected.
+     */
+    public function updateCost(int $productId, string $value, ProductService $products): ?string
+    {
+        $product = Product::findOrFail($productId);
+        $cost = Pricing::parse($value);
+
+        if ($cost === null || $cost < 0) {
+            $this->dispatch('toast', message: 'El costo tiene que ser un número mayor o igual a cero.', type: 'error');
+
+            return null;
+        }
+
+        $cost = round($cost, 2);
+
+        if ($cost === round((float) $product->cost_price, 2)) {
+            return Pricing::money($cost);
+        }
+
+        $price = Pricing::finalPrice($cost, (float) $product->markup_percent, (float) $product->vat_percent);
+
+        if ($price <= 0) {
+            $this->dispatch('toast', message: 'El precio final tiene que ser mayor a cero.', type: 'error');
+
+            return null;
+        }
+
+        $products->update($product, ['cost_price' => $cost, 'price' => $price], auth()->id());
+
+        unset($this->products);
+        $this->dispatch('toast', message: 'Se actualizó '.$product->name.': costo '.Pricing::money($cost).', precio final '.Pricing::money($price).'.');
+
+        return Pricing::money($cost);
+    }
+
     #[Computed]
     public function categories(): Collection
     {
