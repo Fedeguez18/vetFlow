@@ -107,6 +107,27 @@ class PaymentReceiptTest extends TestCase
         $this->assertStringNotContainsString($this->remitos[2]->voucher_number, $html);
     }
 
+    public function test_the_receipt_lists_the_products_of_each_remito_it_settled(): void
+    {
+        $producer = Producer::factory()->create(['name' => 'Cabaña El Ombú']);
+        $vaccine = Product::factory()->create(['name' => 'Vacuna Antiaftosa Bivalente', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 20, 'price' => 12500]);
+        $tags = Product::factory()->create(['name' => 'Caravanas Botón Hembra', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 20, 'price' => 3000]);
+        $salt = Product::factory()->create(['name' => 'Sales Minerales Bovinas', 'is_active' => true, 'tracks_expiry' => false, 'stock' => 20, 'price' => 9000]);
+        $checkout = app(CheckoutService::class);
+        $first = $checkout->execute([['product_id' => $vaccine->id, 'quantity' => 2], ['product_id' => $tags->id, 'quantity' => 3]], ['type' => 'remito', 'producer_id' => $producer->id]);
+        $this->travel(1)->minutes();
+        $second = $checkout->execute([['product_id' => $salt->id, 'quantity' => 1]], ['type' => 'remito', 'producer_id' => $producer->id]);
+
+        $payment = app(PaymentService::class)->register($producer->id, 34000, 'mercado_pago');
+        $html = view('pdf.receipt', app(AccountDocumentService::class)->receipt($payment))->render();
+
+        $this->assertStringContainsString('Remito '.$first->voucher_number, $html);
+        $this->assertMatchesRegularExpression('/2 ×.*?Vacuna Antiaftosa Bivalente\s*<span[^>]*>\(\$ 12\.500,00 c\/u\)<\/span>.*?\$ 25\.000,00/s', $html);
+        $this->assertMatchesRegularExpression('/3 ×.*?Caravanas Botón Hembra.*?\$ 9\.000,00/s', $html);
+        $this->assertStringNotContainsString($second->voucher_number, $html);
+        $this->assertStringNotContainsString('Sales Minerales Bovinas', $html);
+    }
+
     public function test_account_payments_take_mercado_pago_and_no_longer_cards(): void
     {
         $this->actingAs(User::factory()->admin()->create());

@@ -9,6 +9,7 @@ use App\Models\SaleItem;
 use App\Support\AmountInWords;
 use App\Support\Pricing;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
 /**
@@ -70,19 +71,22 @@ class AccountDocumentService
     }
 
     /**
-     * Payment receipt: amount (also in words), method, the remitos it settled and the balances.
+     * Payment receipt: amount (also in words), method, the remitos it settled with their products, and the balances.
      *
      * @return array{payment: Payment, producer: Producer, amountInWords: string, allocations: Collection<int, array<string, mixed>>, unapplied: float, balance_before: float, balance_after: float}
      */
     public function receipt(Payment $payment): array
     {
         $payment->loadMissing('producer');
+        $receipt = $this->allocations->forPayment($payment);
+
+        EloquentCollection::make($receipt['allocations']->pluck('sale'))->loadMissing('saleItems.product');
 
         return [
             'payment' => $payment,
             'producer' => $payment->producer,
             'amountInWords' => AmountInWords::money((float) $payment->amount),
-            ...$this->allocations->forPayment($payment),
+            ...$receipt,
         ];
     }
 

@@ -39,21 +39,38 @@
     <table class="grid" style="margin-top: 4px;">
         <thead>
             <tr>
-                <th style="width: 14%;">Fecha</th>
-                <th>Comprobante</th>
-                <th style="width: 18%;">Importe remito</th>
-                <th style="width: 18%;">Aplicado</th>
-                <th style="width: 18%;">Queda pendiente</th>
+                <th style="width: 12%;">Fecha</th>
+                <th>Comprobante y productos</th>
+                <th style="width: 15%;">Importe remito</th>
+                <th style="width: 15%;">Aplicado</th>
+                <th style="width: 15%;">Queda pendiente</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($allocations as $allocation)
                 <tr>
-                    <td class="c">{{ $allocation['sale']->created_at->format('d/m/Y') }}</td>
-                    <td>Remito {{ $allocation['sale']->voucher_number }}</td>
-                    <td class="num">{{ $money($allocation['sale']->total) }}</td>
-                    <td class="num">{{ $money($allocation['applied']) }}</td>
-                    <td class="num">{{ $allocation['pending'] > 0 ? $money($allocation['pending']) : 'Cancelado' }}</td>
+                    <td class="c" style="vertical-align: top;">{{ $allocation['sale']->created_at->format('d/m/Y') }}</td>
+                    <td style="vertical-align: top;">
+                        <strong>Remito {{ $allocation['sale']->voucher_number }}</strong>
+                        {{-- Products of this remito, at the price they were sold (with VAT, so they add up to its total). --}}
+                        @if ($allocation['sale']->saleItems->isNotEmpty())
+                            <table style="margin-top: 2px;">
+                                @foreach ($allocation['sale']->saleItems as $item)
+                                    <tr>
+                                        <td class="muted" style="border: 0; height: auto; padding: 1px 4px 1px 0; width: 9%; font-size: 7.5px; white-space: nowrap; vertical-align: top;">{{ $item->quantity }} ×</td>
+                                        <td class="muted" style="border: 0; height: auto; padding: 1px 4px 1px 0; font-size: 7.5px; vertical-align: top;">
+                                            {{ $item->product?->name ?? 'Producto eliminado' }}
+                                            <span style="white-space: nowrap;">({{ $money($item->unit_price) }} c/u)</span>
+                                        </td>
+                                        <td class="num muted" style="border: 0; height: auto; padding: 1px 0; width: 28%; font-size: 7.5px; vertical-align: top;">{{ $money($item->subtotal) }}</td>
+                                    </tr>
+                                @endforeach
+                            </table>
+                        @endif
+                    </td>
+                    <td class="num" style="vertical-align: top;">{{ $money($allocation['sale']->total) }}</td>
+                    <td class="num" style="vertical-align: top;">{{ $money($allocation['applied']) }}</td>
+                    <td class="num" style="vertical-align: top;">{{ $allocation['pending'] > 0 ? $money($allocation['pending']) : 'Cancelado' }}</td>
                 </tr>
             @endforeach
             @if ($unapplied > 0)
