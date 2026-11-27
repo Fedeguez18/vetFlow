@@ -5,15 +5,18 @@ namespace App\Livewire;
 use App\Exceptions\StockException;
 use App\Livewire\Concerns\RequiresAdmin;
 use App\Livewire\Forms\ProductForm;
+use App\Models\BarcodeLabel;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\ProductService;
 use App\Services\StockService;
+use App\Support\Ean13;
 use App\Support\Pricing;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -54,6 +57,12 @@ class ProductEditor extends Component
      */
     public ?string $notice = null;
 
+    /**
+     * Code invented with "Generar": if it is still the product's barcode on save, it goes to the label sheet.
+     */
+    #[Locked]
+    public ?string $generatedBarcode = null;
+
     #[On('product-create')]
     public function create(): void
     {
@@ -62,6 +71,7 @@ class ProductEditor extends Component
         $this->resetAdjustment();
         $this->resetValidation();
         $this->notice = null;
+        $this->generatedBarcode = null;
         $this->tab = 'datos';
         $this->open = true;
     }
@@ -74,6 +84,7 @@ class ProductEditor extends Component
         $this->resetAdjustment();
         $this->resetValidation();
         $this->notice = null;
+        $this->generatedBarcode = null;
         $this->tab = 'datos';
         $this->open = true;
     }
@@ -129,6 +140,19 @@ class ProductEditor extends Component
             : "El código {$barcode} ya estaba cargado en {$product->name}, que está dado de baja. Marcá \"Artículo activo\" y guardá para volver a venderlo.";
     }
 
+    /**
+     * Invent an internal EAN-13 for a product that came without a barcode.
+     */
+    public function generateBarcode(): void
+    {
+        if (trim($this->form->barcode) !== '') {
+            return;
+        }
+
+        $this->form->barcode = $this->generatedBarcode = Ean13::nextInternal();
+        $this->resetValidation('form.barcode');
+    }
+
     public function addLot(): void
     {
         $this->form->addLot();
@@ -163,9 +187,16 @@ class ProductEditor extends Component
             );
         }
 
+        $labelQueued = $this->generatedBarcode !== null && $product->barcode === $this->generatedBarcode;
+
+        if ($labelQueued) {
+            BarcodeLabel::queue($product, $product->stock);
+            $this->generatedBarcode = null;
+        }
+
         $this->open = false;
         $this->dispatch('product-saved');
-        $this->dispatch('toast', message: ($editing ? 'Se actualizó ' : 'Se creó ').$product->name.'.');
+        $this->dispatch('toast', message: ($editing ? 'Se actualizó ' : 'Se creó ').$product->name.'.'.($labelQueued ? ' Su código quedó en la hoja de etiquetas.' : ''));
     }
 
     /**

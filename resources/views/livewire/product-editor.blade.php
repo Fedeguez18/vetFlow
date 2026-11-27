@@ -67,7 +67,17 @@
                                 <div class="grid gap-4 sm:grid-cols-2">
                                     <div>
                                         <label for="pf-barcode" class="{{ $label }}">Código de barras</label>
-                                        <input id="pf-barcode" type="text" wire:model.live.blur="form.barcode" x-init="$nextTick(() => $el.focus())" x-on:keydown.enter.prevent="document.getElementById('pf-sku').focus()" autocomplete="off" placeholder="Escaneá o tipeá el código" class="{{ $input }} font-mono">
+                                        <div class="flex gap-2">
+                                            <input id="pf-barcode" type="text" wire:model.live.blur="form.barcode" x-init="$nextTick(() => $el.focus())" x-on:keydown.enter.prevent="document.getElementById('pf-sku').focus()" autocomplete="off" placeholder="Escaneá o tipeá el código" class="{{ $input }} font-mono">
+                                            @if (trim($form->barcode) === '')
+                                                <button type="button" wire:click="generateBarcode" wire:loading.attr="disabled" wire:target="generateBarcode" title="Inventar un código para un artículo que no trae, y sumarlo a la hoja de etiquetas" class="shrink-0 whitespace-nowrap rounded-[10px] px-3 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/30 hover:bg-emerald-50 disabled:opacity-50">
+                                                    Generar
+                                                </button>
+                                            @endif
+                                        </div>
+                                        @if ($generatedBarcode && $form->barcode === $generatedBarcode)
+                                            <p class="mt-1 text-xs text-emerald-700">Código nuevo. Al guardar se suma a la hoja de etiquetas para imprimir.</p>
+                                        @endif
                                         @error('form.barcode') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
