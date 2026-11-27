@@ -14,6 +14,7 @@ use App\Services\CheckoutService;
 use App\Services\PosTerminalService;
 use App\Services\VoucherBlockService;
 use App\Support\Pricing;
+use App\Support\Quantity;
 use Exception;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -46,9 +47,9 @@ class PosDesk extends Component
     public ?int $categoryId = null;
 
     /**
-     * Cart lines keyed by product id.
+     * Cart lines keyed by product id. Lines "by_weight" hold grams and a price per kg.
      *
-     * @var array<int, array{product_id: int, name: string, barcode: ?string, price: string, stock: int, quantity: int}>
+     * @var array<int, array{product_id: int, name: string, barcode: ?string, price: string, stock: int, quantity: int, by_weight?: bool}>
      */
     public array $cart = [];
 
@@ -225,7 +226,8 @@ class PosDesk extends Component
 
         if ($quantity > $stock) {
             $quantity = max(1, $stock);
-            $this->notify("Stock insuficiente de {$this->cart[$productId]['name']}: disponible {$stock}.");
+            $this->notify("Stock insuficiente de {$this->cart[$productId]['name']}: disponible "
+                .Quantity::format($stock, $this->cart[$productId]['by_weight'] ?? false).'.');
         }
 
         $this->cart[$productId]['quantity'] = $quantity;
@@ -409,7 +411,7 @@ class PosDesk extends Component
     public function total(): float
     {
         return round(array_sum(array_map(
-            fn (array $line) => (float) $line['price'] * $line['quantity'],
+            fn (array $line) => Quantity::lineTotal((float) $line['price'], $line['quantity'], $line['by_weight'] ?? false),
             $this->cart,
         )), 2);
     }
@@ -457,17 +459,28 @@ class PosDesk extends Component
         ]);
     }
 
+    /**
+     * Units add one at a time. Products sold by weight enter once, with 1 kg (or what is left), and the
+     * grams field gets the focus so the cashier types the weight.
+     */
     protected function addToCart(Product $product): bool
     {
         $current = $this->cart[$product->id]['quantity'] ?? 0;
         $available = $product->sellableStock();
+        $byWeight = $product->sold_by_weight;
+
+        if ($byWeight && $current > 0) {
+            $this->dispatch('focus-weight', productId: $product->id);
+
+            return true;
+        }
 
         if ($current + 1 > $available) {
             $expired = $product->expiredStock();
 
             $this->notify($available === 0 && $expired > 0
                 ? "No se puede vender {$product->name}: las {$expired} unidades en stock están vencidas."
-                : "Sin stock suficiente de {$product->name} (disponible {$available}).");
+                : "Sin stock suficiente de {$product->name} (disponible {$product->formatQuantity($available)}).");
 
             return false;
         }
@@ -478,11 +491,12 @@ class PosDesk extends Component
             'barcode' => $product->barcode,
             'price' => (string) $product->price,
             'stock' => $available,
-            'quantity' => $current + 1,
+            'quantity' => $byWeight ? min(Quantity::GRAMS_PER_KG, $available) : $current + 1,
+            'by_weight' => $byWeight,
         ];
 
         $this->creditLimitWarning = null;
-        $this->dispatch('focus-scan');
+        $this->dispatch($byWeight ? 'focus-weight' : 'focus-scan', productId: $product->id);
 
         return true;
     }

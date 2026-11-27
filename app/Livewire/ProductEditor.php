@@ -107,6 +107,12 @@ class ProductEditor extends Component
             default => null,
         };
 
+        if ($property === 'form.sold_by_weight' && $this->form->sold_by_weight) {
+            $this->form->tracks_expiry = false;
+            $this->form->bulk_product_id = null;
+            $this->form->bag_weight = '';
+        }
+
         if ($property === 'form.tracks_expiry' && $this->form->tracks_expiry && $this->form->lots === []) {
             $this->form->addLot();
         }
@@ -182,7 +188,7 @@ class ProductEditor extends Component
             $product = $products->create(
                 $this->form->attributes(),
                 $this->form->tracks_expiry ? $this->form->lots : [],
-                $this->form->tracks_expiry ? 0 : (int) $this->form->initial_stock,
+                $this->form->tracks_expiry ? 0 : $this->form->initialStockQuantity(),
                 auth()->id(),
             );
         }
@@ -241,6 +247,19 @@ class ProductEditor extends Component
 
         $this->dispatch('stock-updated');
         $this->dispatch('toast', message: 'Ajuste registrado: '.($movement->quantity > 0 ? '+' : '').$movement->quantity.' unidades de '.$product->name.'.');
+    }
+
+    /**
+     * Loose products a closed bag can be opened into.
+     */
+    #[Computed]
+    public function bulkProducts(): Collection
+    {
+        return Product::query()
+            ->where('sold_by_weight', true)
+            ->when($this->form->product, fn ($query, $product) => $query->whereKeyNot($product->id))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     #[Computed]

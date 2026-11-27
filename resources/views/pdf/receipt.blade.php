@@ -57,7 +57,7 @@
                             <table style="margin-top: 2px;">
                                 @foreach ($allocation['sale']->saleItems as $item)
                                     <tr>
-                                        <td class="muted" style="border: 0; height: auto; padding: 1px 4px 1px 0; width: 9%; font-size: 7.5px; white-space: nowrap; vertical-align: top;">{{ $item->quantity }} ×</td>
+                                        <td class="muted" style="border: 0; height: auto; padding: 1px 4px 1px 0; width: 9%; font-size: 7.5px; white-space: nowrap; vertical-align: top;">{{ $item->formattedQuantity() }} ×</td>
                                         <td class="muted" style="border: 0; height: auto; padding: 1px 4px 1px 0; font-size: 7.5px; vertical-align: top;">
                                             {{ $item->product?->name ?? 'Producto eliminado' }}
                                             <span style="white-space: nowrap;">({{ $money($item->unit_price) }} c/u)</span>

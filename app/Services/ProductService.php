@@ -57,6 +57,15 @@ class ProductService
         unset($attributes['stock']);
 
         return DB::transaction(function () use ($product, $attributes, $userId) {
+            if (array_key_exists('sold_by_weight', $attributes) && (bool) $attributes['sold_by_weight'] !== (bool) $product->sold_by_weight) {
+                $stock = (int) Product::query()->whereKey($product->id)->lockForUpdate()->value('stock');
+
+                if ($stock > 0) {
+                    throw new StockException("No se puede cambiar la venta por peso de {$product->name} con stock cargado: "
+                        .'el stock pasaría de unidades a gramos. Ajustá el stock a 0, cambiá la opción y volvé a ingresarlo.');
+                }
+            }
+
             if (array_key_exists('tracks_expiry', $attributes) && (bool) $attributes['tracks_expiry'] !== (bool) $product->tracks_expiry) {
                 $stock = (int) Product::query()->whereKey($product->id)->lockForUpdate()->value('stock');
 

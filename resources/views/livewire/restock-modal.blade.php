@@ -14,7 +14,7 @@
                         <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Reponer stock</span>
                         <h2 class="text-lg font-bold text-slate-900">{{ $product->name }}</h2>
                         <p class="text-xs text-slate-500">
-                            Stock actual {{ $product->stock }} · mínimo {{ $product->min_stock }}
+                            Stock actual {{ $product->formatQuantity($product->stock) }} · mínimo {{ $product->formatQuantity($product->min_stock) }}
                             {{ $product->tracks_expiry ? '· maneja vencimiento por lote' : '' }}
                         </p>
                     </div>
@@ -22,8 +22,8 @@
                 </div>
 
                 <div>
-                    <label for="rs-qty" class="{{ $label }}">Cantidad a ingresar</label>
-                    <input id="rs-qty" type="number" min="1" step="1" wire:model="quantity" x-init="$nextTick(() => $el.focus())" class="{{ $input }} text-right text-xl font-bold">
+                    <label for="rs-qty" class="{{ $label }}">{{ $product->sold_by_weight ? 'Kilos a ingresar' : 'Cantidad a ingresar' }}</label>
+                    <input id="rs-qty" type="{{ $product->sold_by_weight ? 'text' : 'number' }}" inputmode="decimal" min="1" step="1" wire:model="quantity" x-init="$nextTick(() => $el.focus())" class="{{ $input }} text-right text-xl font-bold">
                     @error('quantity') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
 

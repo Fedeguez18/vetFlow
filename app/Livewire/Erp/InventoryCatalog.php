@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Erp;
 
+use App\Exceptions\StockException;
 use App\Livewire\Concerns\RequiresAdmin;
 use App\Models\Category;
 use App\Models\Lot;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Services\ProductService;
+use App\Services\StockService;
 use App\Support\Pricing;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -86,7 +88,7 @@ class InventoryCatalog extends Component
 
         return [
             'total' => Product::where('is_active', true)->count(),
-            'critical_stock' => Product::where('is_active', true)->where('stock', '<=', Product::CRITICAL_STOCK)->count(),
+            'critical_stock' => Product::where('is_active', true)->where('sold_by_weight', false)->where('stock', '<=', Product::CRITICAL_STOCK)->count(),
             'expiring_lots' => $activeLots()->whereBetween('expiration_date', [today(), today()->addDays(60)])->count(),
             'critical_lots' => $activeLots()->whereBetween('expiration_date', [today(), today()->addDays(29)])->count(),
             'cash_today' => round((float) Sale::query()
@@ -94,6 +96,44 @@ class InventoryCatalog extends Component
                 ->whereBetween('created_at', [today(), today()->endOfDay()])
                 ->sum('total'), 2),
         ];
+    }
+
+    /**
+     * Open a closed bag: one bag out, its kilos into the loose product.
+     */
+    public function openBag(int $productId, StockService $stock): void
+    {
+        $bag = Product::findOrFail($productId);
+
+        try {
+            ['bulk' => $movement] = $stock->openBag($bag, auth()->id());
+        } catch (StockException $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+
+            return;
+        }
+
+        unset($this->products, $this->kpis);
+        $this->dispatch('toast', message: "Se abrió una bolsa de {$bag->name}: +{$movement->product->formatQuantity($movement->quantity)} en {$movement->product->name}.");
+    }
+
+    /**
+     * The open bag of a loose product is empty: the grams the system still shows go out as waste.
+     */
+    public function finishOpenBag(int $productId, StockService $stock): void
+    {
+        $loose = Product::findOrFail($productId);
+
+        try {
+            $movement = $stock->finishOpenBag($loose, auth()->id());
+        } catch (StockException $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+
+            return;
+        }
+
+        unset($this->products);
+        $this->dispatch('toast', message: "Bolsa de {$loose->name} terminada: {$loose->formatQuantity(-$movement->quantity)} pasaron a merma.");
     }
 
     /**
@@ -190,7 +230,7 @@ class InventoryCatalog extends Component
         $sort = array_key_exists($this->sort, Product::SORTS) ? $this->sort : 'name';
 
         return Product::query()
-            ->with(['category', 'nextLot'])
+            ->with(['category', 'nextLot', 'bulkProduct:id,stock,sold_by_weight', 'bags'])
             ->inventory($this->search, $this->categoryId, $sort)
             ->paginate(self::PER_PAGE);
     }

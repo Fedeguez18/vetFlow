@@ -91,6 +91,118 @@ class StockService
     }
 
     /**
+     * What is left of an open bag below this share of the new bag is taken as waste when the next one
+     * is opened: the scale is not exact and the last grams spill, so the old bag is really finished.
+     */
+    public const BAG_WASTE_TOLERANCE_PERCENT = 5;
+
+    /**
+     * Open a closed bag: one bag leaves its stock (from the lot that expires first when it tracks expiry)
+     * and its kilos go into the loose product sold by weight, both as traceable movements. A small rest of
+     * the previous open bag (under BAG_WASTE_TOLERANCE_PERCENT) is written off as waste first.
+     *
+     * @return array{bag: StockMovement, bulk: StockMovement, waste: StockMovement|null}
+     *
+     * @throws StockException
+     */
+    public function openBag(Product $bag, ?int $userId = null): array
+    {
+        return DB::transaction(function () use ($bag, $userId) {
+            $ids = [$bag->id, (int) $bag->bulk_product_id];
+            sort($ids);
+            $locked = Product::query()->whereKey($ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+            $bag = $locked->get($bag->id);
+            $bulk = $locked->get((int) $bag?->bulk_product_id);
+
+            if (! $bag || ! $bag->canBeOpened() || ! $bulk || ! $bulk->sold_by_weight) {
+                throw new StockException('Este artículo no tiene configurado un suelto por kilo al que abrir la bolsa.');
+            }
+
+            $lot = null;
+
+            if ($bag->tracks_expiry) {
+                $lot = $bag->lots()->sellable()->orderBy('expiration_date')->orderBy('id')->lockForUpdate()->first();
+
+                if (! $lot) {
+                    throw new StockException("No hay bolsas vigentes de {$bag->name} para abrir.");
+                }
+
+                $lot->decrement('quantity');
+                $bag->syncStockFromLots();
+            } else {
+                if ($bag->stock < 1) {
+                    throw new StockException("No hay bolsas de {$bag->name} en stock.");
+                }
+
+                $bag->decrement('stock');
+            }
+
+            $rest = (int) $bulk->stock;
+            $waste = $rest > 0 && $rest * 100 < $bag->bag_weight_grams * self::BAG_WASTE_TOLERANCE_PERCENT
+                ? $this->writeOffOpenBag($bulk, "Merma de bolsa: resto de {$bulk->formatQuantity($rest)} al abrir otra", $userId)
+                : null;
+
+            $bulk->increment('stock', $bag->bag_weight_grams);
+
+            return [
+                'waste' => $waste,
+                'bag' => StockMovement::create([
+                    'product_id' => $bag->id,
+                    'lot_id' => $lot?->id,
+                    'type' => 'egreso',
+                    'quantity' => -1,
+                    'reason' => "Bolsa abierta: pasó a {$bulk->name}",
+                    'user_id' => $userId,
+                ]),
+                'bulk' => StockMovement::create([
+                    'product_id' => $bulk->id,
+                    'type' => 'ingreso',
+                    'quantity' => $bag->bag_weight_grams,
+                    'reason' => "Bolsa abierta de {$bag->name}",
+                    'user_id' => $userId,
+                ]),
+            ];
+        });
+    }
+
+    /**
+     * The open bag of a loose product ran out although the system still shows some grams (or it was
+     * thrown away): the rest goes out as waste and the next sale opens a new bag.
+     *
+     * @throws StockException
+     */
+    public function finishOpenBag(Product $loose, ?int $userId = null): StockMovement
+    {
+        return DB::transaction(function () use ($loose, $userId) {
+            $loose = Product::query()->lockForUpdate()->findOrFail($loose->id);
+
+            if (! $loose->sold_by_weight || $loose->stock <= 0) {
+                throw new StockException("{$loose->name} no tiene una bolsa abierta.");
+            }
+
+            return $this->writeOffOpenBag($loose, "Merma de bolsa: se terminó con {$loose->formatQuantity($loose->stock)} sin vender", $userId);
+        });
+    }
+
+    /**
+     * Take the whole rest of the open bag out of a (locked) loose product as an "egreso".
+     */
+    protected function writeOffOpenBag(Product $loose, string $reason, ?int $userId): StockMovement
+    {
+        $rest = (int) $loose->stock;
+        $loose->decrement('stock', $rest);
+
+        return StockMovement::create([
+            'product_id' => $loose->id,
+            'type' => 'egreso',
+            'quantity' => -$rest,
+            'reason' => $reason,
+            'user_id' => $userId,
+        ]);
+    }
+
+    /**
      * Subtract units ("subtract") or correct to a counted quantity ("set"), on a lot when the product tracks expiry.
      *
      * @throws StockException
@@ -128,7 +240,7 @@ class StockService
             $delta = $mode === 'subtract' ? -$quantity : $quantity - $current;
 
             if ($current + $delta < 0) {
-                throw new StockException("No se pueden restar {$quantity} unidades: hay {$current}.");
+                throw new StockException("No se pueden restar {$product->formatQuantity($quantity)}: hay {$product->formatQuantity($current)}.");
             }
 
             if ($delta === 0) {
@@ -157,9 +269,15 @@ class StockService
      */
     public function consumeForSale(Product $product, int $quantity, Sale $sale, ?int $userId = null): void
     {
+        $this->openBagsFor($product, $quantity, $userId);
+
+        if ($product->sold_by_weight && $product->stock < $quantity) {
+            throw new StockException("Las bolsas de {$product->name} no alcanzan para {$product->formatQuantity($quantity)}.");
+        }
+
         if ($product->tracks_expiry) {
             if ($this->takeFromLots($product, $quantity, $sale, $userId) > 0) {
-                throw new StockException("Los lotes vigentes de {$product->name} no alcanzan para {$quantity} unidades (los lotes vencidos no se venden).");
+                throw new StockException("Los lotes vigentes de {$product->name} no alcanzan para {$product->formatQuantity($quantity)} (los lotes vencidos no se venden).");
             }
         } else {
             $this->recordSale($product, $sale, -$quantity, null, $userId);
@@ -174,6 +292,8 @@ class StockService
      */
     public function consumeAvailableForSale(Product $product, int $quantity, Sale $sale, ?int $userId = null): int
     {
+        $this->openBagsFor($product, $quantity, $userId);
+
         if ($product->tracks_expiry) {
             $taken = $quantity - $this->takeFromLots($product, $quantity, $sale, $userId);
         } else {
@@ -189,6 +309,32 @@ class StockService
         }
 
         return $quantity - $taken;
+    }
+
+    /**
+     * Loose food is sold from the open bag: when what is left doesn't cover the sale, closed bags are
+     * opened (one at a time, each one a traceable movement) until it does or there are no more bags.
+     */
+    protected function openBagsFor(Product $product, int $quantity, ?int $userId): void
+    {
+        if (! $product->sold_by_weight) {
+            return;
+        }
+
+        while ((int) $product->stock < $quantity) {
+            $bag = $product->bags()
+                ->where('bag_weight_grams', '>', 0)
+                ->orderBy('id')
+                ->get()
+                ->first(fn (Product $bag) => $bag->sellableStock() > 0);
+
+            if (! $bag) {
+                return;
+            }
+
+            $this->openBag($bag, $userId);
+            $product->refresh();
+        }
     }
 
     /**

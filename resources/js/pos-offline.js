@@ -119,6 +119,18 @@ export function money(amount) {
     return `${value < 0 ? '-' : ''}$${formatted}`;
 }
 
+/** Amount of a line like the server's Quantity::lineTotal: weight lines are grams at a price per kg. */
+export function lineTotal(price, quantity, byWeight) {
+    return Math.round((price * quantity) / (byWeight ? 1000 : 1) * 100) / 100;
+}
+
+/** "3" units, or "350 g" / "2,5 kg" like the server's Quantity::format. */
+export function formatQuantity(quantity, byWeight) {
+    if (! byWeight) return String(quantity);
+    if (Math.abs(quantity) < 1000) return `${quantity} g`;
+    return `${(quantity / 1000).toLocaleString('es-AR', { maximumFractionDigits: 3 })} kg`;
+}
+
 /** "1500.50", "1.500,50" and "25.000" like the server's Pricing::parse. */
 export function parseAmount(value) {
     let amount = String(value ?? '').replace(/[\s$%]/g, '');
@@ -469,7 +481,7 @@ function ticketHtml(sale, snapshot) {
     const escape = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const producer = snapshot.producers.find((p) => p.id === sale.producer_id);
     const lines = sale.items.map((item) => `<div>${escape(item.name)}</div>
-        <div class="row muted"><span>${item.quantity} x ${money(item.unit_price)}</span><span>${money(item.unit_price * item.quantity)}</span></div>`).join('');
+        <div class="row muted"><span>${formatQuantity(item.quantity, item.by_weight)} x ${money(item.unit_price)}${item.by_weight ? '/kg' : ''}</span><span>${money(lineTotal(item.unit_price, item.quantity, item.by_weight))}</span></div>`).join('');
     return `<h1>veteFlow</h1><div class="c muted">Veterinaria rural</div><hr>
         <div class="row"><span>${sale.type === 'remito' ? 'REMITO' : 'TICKET'}</span><span>${escape(sale.voucher_number ?? sale.provisional_number)}</span></div>
         ${sale.voucher_number ? '' : '<div class="c muted">Comprobante provisorio: el número definitivo se asigna al volver internet</div>'}
@@ -645,7 +657,7 @@ function posOffline() {
         },
 
         get total() {
-            return Math.round(this.lines.reduce((sum, line) => sum + line.price * line.quantity, 0) * 100) / 100;
+            return Math.round(this.lines.reduce((sum, line) => sum + lineTotal(line.price, line.quantity, line.by_weight), 0) * 100) / 100;
         },
 
         get onAccount() {
@@ -681,12 +693,27 @@ function posOffline() {
         add(product) {
             const stock = this.stockOf(product);
             const inCart = this.cart[product.id]?.quantity ?? 0;
-            if (inCart + 1 > stock) {
-                this.notify(stock > 0 ? `Stock insuficiente de ${product.name}: disponible ${stock}.` : `${product.name} no tiene stock.`);
+            const byWeight = Boolean(product.sold_by_weight);
+            if (byWeight && inCart > 0) {
+                this.focusWeight(product.id);
                 return;
             }
-            this.cart[product.id] = { product_id: product.id, name: product.name, price: product.price, stock, quantity: inCart + 1 };
+            if (inCart + 1 > stock) {
+                this.notify(stock > 0 ? `Stock insuficiente de ${product.name}: disponible ${formatQuantity(stock, byWeight)}.` : `${product.name} no tiene stock.`);
+                return;
+            }
+            // Weight enters once with 1 kg (or what is left) and the grams field gets the focus.
+            this.cart[product.id] = { product_id: product.id, name: product.name, price: product.price, stock, quantity: byWeight ? Math.min(1000, stock) : inCart + 1, by_weight: byWeight };
             this.notify(`${product.name} añadido al ticket.`, 'success');
+            if (byWeight) this.focusWeight(product.id);
+        },
+
+        focusWeight(productId) {
+            this.$nextTick(() => {
+                const input = document.getElementById(`offline-weight-${productId}`);
+                input?.focus();
+                input?.select();
+            });
         },
 
         scan() {
@@ -709,7 +736,7 @@ function posOffline() {
             let value = Math.max(1, parseInt(quantity, 10) || 1);
             if (value > line.stock) {
                 value = Math.max(1, line.stock);
-                this.notify(`Stock insuficiente de ${line.name}: disponible ${line.stock}.`);
+                this.notify(`Stock insuficiente de ${line.name}: disponible ${formatQuantity(line.stock, line.by_weight)}.`);
             }
             line.quantity = value;
         },
@@ -750,7 +777,7 @@ function posOffline() {
                 producer_id: this.producerId,
                 voucher_number: voucher,
                 provisional_number: voucher ? null : nextProvisional(this.snapshot.terminal.id),
-                items: this.lines.map((line) => ({ product_id: line.product_id, quantity: line.quantity, unit_price: line.price, name: line.name })),
+                items: this.lines.map((line) => ({ product_id: line.product_id, quantity: line.quantity, unit_price: line.price, name: line.name, by_weight: Boolean(line.by_weight) })),
                 total: this.total,
             };
 
@@ -776,6 +803,8 @@ function posOffline() {
         },
 
         money,
+        lineTotal,
+        formatQuantity,
     };
 }
 

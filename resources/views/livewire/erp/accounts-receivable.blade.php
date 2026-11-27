@@ -254,7 +254,7 @@
                                     <ul class="space-y-0.5">
                                         @foreach ($sale->saleItems as $saleItem)
                                             <li wire:key="sale-item-{{ $saleItem->id }}">
-                                                <span class="tabular-nums text-slate-500">{{ $saleItem->quantity }}×</span>
+                                                <span class="tabular-nums text-slate-500">{{ $saleItem->formattedQuantity() }}×</span>
                                                 {{ $saleItem->product?->name ?? 'Producto eliminado' }}
                                             </li>
                                         @endforeach

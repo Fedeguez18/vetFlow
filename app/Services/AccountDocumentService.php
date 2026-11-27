@@ -8,6 +8,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Support\AmountInWords;
 use App\Support\Pricing;
+use App\Support\Quantity;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -132,9 +133,10 @@ class AccountDocumentService
 
     /**
      * One printable line per sale item: code, date, detail, quantity, net unit price and net subtotal.
+     * Items sold by weight print their quantity in kg next to the price per kg.
      *
      * @param  Collection<int, Sale>  $sales
-     * @return Collection<int, array{code: string, date: string, voucher: string, detail: string, quantity: int, vat: float, price: float, subtotal: float, gross: float}>
+     * @return Collection<int, array{code: string, date: string, voucher: string, detail: string, quantity: int|float, unit: string, vat: float, price: float, subtotal: float, gross: float}>
      */
     protected function lines(Collection $sales): Collection
     {
@@ -143,16 +145,18 @@ class AccountDocumentService
             // The line subtotal is quantity x the rounded net price, so every printed line adds up
             // exactly; the total with VAT is always the real amount of the remito.
             $price = round((float) $item->unit_price / (1 + $vat / 100), 2);
+            $quantity = $item->sold_by_weight ? $item->quantity / Quantity::GRAMS_PER_KG : (int) $item->quantity;
 
             return [
                 'code' => (string) ($item->product?->sku ?? $item->product_id),
                 'date' => $sale->created_at->format('d/m/Y'),
                 'voucher' => $sale->voucher_number,
                 'detail' => $item->product?->name ?? 'Producto eliminado',
-                'quantity' => (int) $item->quantity,
+                'quantity' => $quantity,
+                'unit' => $item->sold_by_weight ? 'kg' : '',
                 'vat' => $vat,
                 'price' => $price,
-                'subtotal' => round($price * $item->quantity, 2),
+                'subtotal' => round($price * $quantity, 2),
                 'gross' => (float) $item->subtotal,
             ];
         }))->values();

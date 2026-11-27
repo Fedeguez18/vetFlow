@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Quantity;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'vat_percent',
     'price',
     'tracks_expiry',
+    'sold_by_weight',
+    'bulk_product_id',
+    'bag_weight_grams',
     'stock',
     'min_stock',
     'is_active',
@@ -60,6 +64,8 @@ class Product extends Model
             'vat_percent' => 'decimal:2',
             'price' => 'decimal:2',
             'tracks_expiry' => 'boolean',
+            'sold_by_weight' => 'boolean',
+            'bag_weight_grams' => 'integer',
             'stock' => 'integer',
             'min_stock' => 'integer',
             'is_active' => 'boolean',
@@ -80,6 +86,50 @@ class Product extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    /**
+     * The loose (by weight) product a closed bag is poured into when it is opened.
+     *
+     * @return BelongsTo<Product, $this>
+     */
+    public function bulkProduct(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'bulk_product_id');
+    }
+
+    /**
+     * Closed bags that are opened into this loose product when it is sold.
+     *
+     * @return HasMany<Product, $this>
+     */
+    public function bags(): HasMany
+    {
+        return $this->hasMany(Product::class, 'bulk_product_id');
+    }
+
+    /**
+     * A closed bag that can be opened into its loose product.
+     */
+    public function canBeOpened(): bool
+    {
+        return ! $this->sold_by_weight && $this->bulk_product_id !== null && $this->bag_weight_grams > 0;
+    }
+
+    /**
+     * Amount of a sale line: price per unit, or per kg for products sold by weight (quantity in grams).
+     */
+    public function lineTotal(int $quantity): float
+    {
+        return Quantity::lineTotal((float) $this->price, $quantity, $this->sold_by_weight);
+    }
+
+    /**
+     * "3" units or "2,5 kg" / "350 g".
+     */
+    public function formatQuantity(int $quantity): string
+    {
+        return Quantity::format($quantity, (bool) $this->sold_by_weight);
     }
 
     /**
@@ -164,6 +214,11 @@ class Product extends Model
      */
     public function getStockStatusAttribute(): string
     {
+        // Loose food has no stock of its own: the alert belongs to its closed bags.
+        if ($this->sold_by_weight) {
+            return $this->sellableStock() > 0 ? 'ok' : 'critical';
+        }
+
         return match (true) {
             $this->stock <= self::CRITICAL_STOCK => 'critical',
             $this->stock < $this->min_stock => 'low',
@@ -176,6 +231,10 @@ class Product extends Model
      */
     public function suggestedRestock(): int
     {
+        if ($this->sold_by_weight) {
+            return 0;
+        }
+
         return max(0, max(2 * $this->min_stock, self::CRITICAL_STOCK + 1) - $this->stock);
     }
 
@@ -185,6 +244,10 @@ class Product extends Model
      */
     public function sellableStock(): int
     {
+        if ($this->sold_by_weight) {
+            return $this->openBagStock() + $this->bags->sum(fn (Product $bag) => $bag->sellableStock() * (int) $bag->bag_weight_grams);
+        }
+
         if (! $this->tracks_expiry) {
             return (int) $this->stock;
         }
@@ -194,6 +257,14 @@ class Product extends Model
         }
 
         return (int) $this->lots()->sellable()->sum('quantity');
+    }
+
+    /**
+     * Grams left in the open bag of a loose product (its "stock" column).
+     */
+    public function openBagStock(): int
+    {
+        return $this->sold_by_weight ? max(0, (int) $this->stock) : 0;
     }
 
     /**
@@ -231,7 +302,7 @@ class Product extends Model
      */
     public function scopeLowStock(Builder $query): void
     {
-        $query->where(fn (Builder $query) => $query
+        $query->where('sold_by_weight', false)->where(fn (Builder $query) => $query
             ->where('stock', '<=', self::CRITICAL_STOCK)
             ->orWhereColumn('stock', '<', 'min_stock'));
     }

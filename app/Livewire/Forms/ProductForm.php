@@ -4,6 +4,7 @@ namespace App\Livewire\Forms;
 
 use App\Models\Product;
 use App\Support\Pricing;
+use App\Support\Quantity;
 use Illuminate\Validation\Rule;
 use Livewire\Form;
 
@@ -41,6 +42,18 @@ class ProductForm extends Form
 
     public bool $tracks_expiry = false;
 
+    /**
+     * Loose product: price per kg, the POS asks for grams, and it is sold from its closed bags (no stock of its own).
+     */
+    public bool $sold_by_weight = false;
+
+    /**
+     * Closed bag: the loose product it is poured into when opened, and its net kilos.
+     */
+    public ?int $bulk_product_id = null;
+
+    public string $bag_weight = '';
+
     public string $initial_stock = '0';
 
     public string $min_stock = '0';
@@ -68,6 +81,9 @@ class ProductForm extends Form
         $this->vat_percent = self::plain($product->vat_percent);
         $this->price = self::plain($product->price);
         $this->tracks_expiry = $product->tracks_expiry;
+        $this->sold_by_weight = $product->sold_by_weight;
+        $this->bulk_product_id = $product->bulk_product_id;
+        $this->bag_weight = $product->bag_weight_grams ? Quantity::kilos($product->bag_weight_grams) : '';
         $this->min_stock = (string) $product->min_stock;
         $this->is_active = $product->is_active;
         $this->lots = [];
@@ -157,10 +173,14 @@ class ProductForm extends Form
             'markup_percent' => ['required', 'numeric', 'min:-100'],
             'vat_percent' => ['required', 'numeric', 'min:0'],
             'price' => ['required', 'numeric', 'gt:0'],
-            'tracks_expiry' => ['boolean'],
-            'min_stock' => ['required', 'integer', 'min:0'],
+            // Loose food is weighed out of opened bags: it has no lots of its own.
+            'tracks_expiry' => ['boolean', $this->sold_by_weight ? 'declined' : 'nullable'],
+            'sold_by_weight' => ['boolean'],
+            'bulk_product_id' => $this->sold_by_weight ? ['nullable'] : ['nullable', 'integer', Rule::exists('products', 'id')->where('sold_by_weight', true)->whereNot('id', $this->product?->id)],
+            'bag_weight' => ! $this->sold_by_weight && $this->bulk_product_id ? ['required', 'numeric', 'gt:0', 'max:1000'] : ['nullable'],
+            'min_stock' => $this->sold_by_weight ? ['nullable'] : ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
-            'initial_stock' => $creating && ! $this->tracks_expiry ? ['required', 'integer', 'min:0'] : ['nullable'],
+            'initial_stock' => $creating && ! $this->tracks_expiry && ! $this->sold_by_weight ? ['required', 'integer', 'min:0'] : ['nullable'],
             'lots' => ['array'],
             'lots.*.lot_number' => $creating && $this->tracks_expiry ? ['required', 'string', 'max:60', 'distinct:ignore_case'] : ['nullable'],
             'lots.*.quantity' => $creating && $this->tracks_expiry ? ['required', 'integer', 'min:1'] : ['nullable'],
@@ -179,6 +199,11 @@ class ProductForm extends Form
             'sku.required' => 'El código es obligatorio.',
             'category_id.required' => 'Elegí el rubro.',
             'supplier_id.exists' => 'Ese proveedor está dado de baja.',
+            'tracks_expiry.declined' => 'Un artículo suelto por kilo no maneja lotes: los lotes van en la bolsa cerrada.',
+            'bulk_product_id.exists' => 'Elegí un artículo que se venda suelto por kilo.',
+            'bag_weight.required' => 'Indicá cuántos kilos trae la bolsa.',
+            'bag_weight.gt' => 'Tiene que ser mayor a cero.',
+            'bag_weight.max' => 'No puede superar los 1000 kg.',
             'price.required' => 'El precio es obligatorio.',
             'price.gt' => 'El precio tiene que ser mayor a cero.',
             'name.required' => 'El nombre es obligatorio.',
@@ -201,9 +226,18 @@ class ProductForm extends Form
      */
     public function normalize(): void
     {
-        foreach (['cost_price', 'markup_percent', 'vat_percent', 'price'] as $field) {
+        foreach (['cost_price', 'markup_percent', 'vat_percent', 'price', 'bag_weight'] as $field) {
             $value = Pricing::parse($this->{$field});
             $this->{$field} = $value === null ? trim($this->{$field}) : self::plain($value);
+        }
+
+        if ($this->sold_by_weight) {
+            // Loose food has no stock of its own: it is taken from its closed bags.
+            $this->initial_stock = '0';
+            $this->min_stock = '0';
+            $this->tracks_expiry = false;
+            $this->bulk_product_id = null;
+            $this->bag_weight = '';
         }
 
         $this->barcode = trim($this->barcode);
@@ -229,9 +263,20 @@ class ProductForm extends Form
             'vat_percent' => round((float) $this->vat_percent, 2),
             'price' => round((float) $this->price, 2),
             'tracks_expiry' => $this->tracks_expiry,
-            'min_stock' => (int) $this->min_stock,
+            'sold_by_weight' => $this->sold_by_weight,
+            'bulk_product_id' => $this->sold_by_weight ? null : $this->bulk_product_id,
+            'bag_weight_grams' => ! $this->sold_by_weight && $this->bulk_product_id ? Quantity::gramsFromKilos($this->bag_weight) : null,
+            'min_stock' => $this->sold_by_weight ? 0 : (int) $this->min_stock,
             'is_active' => $this->is_active,
         ];
+    }
+
+    /**
+     * Initial stock to load on create; loose food starts empty and is filled by opening its bags.
+     */
+    public function initialStockQuantity(): int
+    {
+        return $this->sold_by_weight ? 0 : (int) $this->initial_stock;
     }
 
     /**

@@ -251,14 +251,27 @@
                             @endforeach
                             <td class="whitespace-nowrap px-3 2xl:px-5 py-4 text-right">
                                 <span class="group relative inline-block cursor-help font-mono text-base font-bold text-slate-900">
-                                    {{ $money($product->price) }}
+                                    {{ $money($product->price) }}@if ($product->sold_by_weight)<span class="text-xs font-semibold text-slate-500">/kg</span>@endif
                                     <span class="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden w-52 rounded-lg bg-slate-900 p-3 text-left font-sans text-xs font-normal text-slate-200 shadow-lg group-hover:block">
                                         <span class="flex justify-between"><span>Costo</span><span class="tabular-nums">{{ $money($product->cost_price) }}</span></span>
                                     </span>
                                 </span>
                             </td>
                             <td class="whitespace-nowrap px-3 2xl:px-5 py-4 text-center">
-                                <span class="rounded-md px-2 py-1 text-[11px] font-bold uppercase tabular-nums ring-1 ring-inset {{ $stockBadges[$product->stock_status] }}" title="Mínimo {{ $product->min_stock }}">Stock {{ $product->stock }}</span>
+                                @if ($product->sold_by_weight)
+                                    {{-- Loose food has no stock of its own: it is sold from its closed bags. --}}
+                                    <span class="rounded-md px-2 py-1 text-[11px] font-bold uppercase tabular-nums ring-1 ring-inset {{ $stockBadges[$product->stock_status] }}" title="Se descuenta de la bolsa cerrada; al vender se abre una sola">
+                                        {{ $product->bags->isEmpty() ? 'Sin bolsa vinculada' : 'De la bolsa' }}
+                                    </span>
+                                    @if ($product->openBagStock() > 0)
+                                        <span class="mt-1 block text-[11px] text-slate-500">Abierta: {{ $product->formatQuantity($product->openBagStock()) }}</span>
+                                    @endif
+                                @else
+                                    <span class="rounded-md px-2 py-1 text-[11px] font-bold uppercase tabular-nums ring-1 ring-inset {{ $stockBadges[$product->stock_status] }}" title="Mínimo {{ $product->formatQuantity($product->min_stock) }}">Stock {{ $product->formatQuantity($product->stock) }}</span>
+                                    @if ($product->bulkProduct?->openBagStock() > 0)
+                                        <span class="mt-1 block text-[11px] text-slate-500">+ {{ $product->bulkProduct->formatQuantity($product->bulkProduct->openBagStock()) }} abierta</span>
+                                    @endif
+                                @endif
                             </td>
                             <td class="whitespace-nowrap px-3 2xl:px-5 py-4 font-mono text-xs text-slate-600">
                                 {{ $product->tracks_expiry && $product->nextLot ? $product->nextLot->expiration_date->format('d/m/Y') : '—' }}
@@ -280,6 +293,32 @@
                             </td>
                             <td class="whitespace-nowrap px-3 2xl:px-5 py-4">
                                 <div class="flex items-center justify-end gap-2">
+                                    @if ($product->openBagStock() > 0)
+                                        <button
+                                            type="button"
+                                            wire:click="finishOpenBag({{ $product->id }})"
+                                            wire:confirm="¿Se terminó la bolsa abierta de «{{ $product->name }}»? Los {{ $product->formatQuantity($product->openBagStock()) }} que figuran pasan a merma y la próxima venta abre una bolsa nueva."
+                                            wire:loading.attr="disabled"
+                                            wire:target="finishOpenBag({{ $product->id }})"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"
+                                        >
+                                            Terminar bolsa
+                                        </button>
+                                    @endif
+                                    @if ($product->canBeOpened())
+                                        <button
+                                            type="button"
+                                            wire:click="openBag({{ $product->id }})"
+                                            wire:confirm="¿Abrir una bolsa de «{{ $product->name }}»? Se descuenta 1 bolsa y se suman {{ \App\Support\Quantity::format($product->bag_weight_grams, true) }} al suelto."
+                                            wire:loading.attr="disabled"
+                                            wire:target="openBag({{ $product->id }})"
+                                            @disabled($product->stock < 1)
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-amber-800 hover:border-amber-300 hover:bg-amber-100 disabled:opacity-40"
+                                        >
+                                            Abrir bolsa
+                                        </button>
+                                    @endif
+                                    @unless ($product->sold_by_weight)
                                     <button
                                         type="button"
                                         wire:click="$dispatch('product-restock', { productId: {{ $product->id }} })"
@@ -287,6 +326,7 @@
                                     >
                                         Reponer
                                     </button>
+                                    @endunless
                                     <button
                                         type="button"
                                         wire:click="$dispatch('product-edit', { productId: {{ $product->id }} })"

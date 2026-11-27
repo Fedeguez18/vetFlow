@@ -31,7 +31,7 @@
                         <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{{ $editing ? 'Editar artículo' : 'Nuevo artículo' }}</span>
                         <h2 class="text-lg font-bold text-slate-900">{{ $editing ? $product->name : 'Alta de artículo' }}</h2>
                         @if ($editing)
-                            <p class="text-xs text-slate-500">Stock actual: <span class="font-semibold text-slate-800">{{ $product->stock }}</span> · se modifica sólo con Reponer o Ajuste de stock</p>
+                            <p class="text-xs text-slate-500">Stock actual: <span class="font-semibold text-slate-800">{{ $product->formatQuantity($product->stock) }}</span> · se modifica sólo con Reponer o Ajuste de stock</p>
                         @endif
                     </div>
                     <button type="button" wire:click="close" class="rounded-lg p-1 text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700">&times;</button>
@@ -122,10 +122,10 @@
                                 <h3 class="mb-3 text-sm font-bold text-slate-900">Precios</h3>
                                 <div class="grid gap-4 sm:grid-cols-4">
                                     @foreach ([
-                                        'cost_price' => ['Precio inicial (costo s/IVA)', '$', null],
+                                        'cost_price' => [$form->sold_by_weight ? 'Costo por kg (s/IVA)' : 'Precio inicial (costo s/IVA)', '$', null],
                                         'markup_percent' => ['% Remarque', null, '%'],
                                         'vat_percent' => ['% IVA', null, '%'],
-                                        'price' => ['Precio final (c/IVA)', '$', null],
+                                        'price' => [$form->sold_by_weight ? 'Precio final por kg (c/IVA)' : 'Precio final (c/IVA)', '$', null],
                                     ] as $field => [$fieldLabel, $prefix, $suffix])
                                         <div wire:key="price-{{ $field }}">
                                             <label for="pf-{{ $field }}" class="{{ $label }}">{{ $fieldLabel }}</label>
@@ -186,12 +186,23 @@
                                 <h3 class="mb-3 text-sm font-bold text-slate-900">Existencias y vencimientos</h3>
                                 <div class="grid gap-4 sm:grid-cols-3">
                                     <label class="flex items-center gap-2 text-sm text-slate-700 sm:col-span-3">
+                                        <input type="checkbox" wire:model.live="form.sold_by_weight" @disabled($editing && $product->stock > 0) class="rounded border-slate-300 text-[#0F2A26] focus:ring-[#0F2A26]/20 disabled:opacity-50">
+                                        Se vende suelto por peso (precio por kg, en el mostrador se cargan los gramos; el stock sale de la bolsa cerrada)
+                                        @if ($editing && $product->stock > 0)
+                                            <span class="text-xs text-slate-400">(no se puede cambiar con stock cargado)</span>
+                                        @endif
+                                    </label>
+                                    @error('form.sold_by_weight') <p class="-mt-2 text-xs text-rose-600 sm:col-span-3">{{ $message }}</p> @enderror
+
+                                    @if (! $form->sold_by_weight)
+                                    <label class="flex items-center gap-2 text-sm text-slate-700 sm:col-span-3">
                                         <input type="checkbox" wire:model.live="form.tracks_expiry" @disabled($editing && $product->stock > 0) class="rounded border-slate-300 text-[#0F2A26] focus:ring-[#0F2A26]/20 disabled:opacity-50">
                                         Maneja vencimiento / lotes
                                         @if ($editing && $product->stock > 0)
                                             <span class="text-xs text-slate-400">(no se puede cambiar con stock cargado)</span>
                                         @endif
                                     </label>
+                                    @endif
                                     @error('form.tracks_expiry') <p class="-mt-2 text-xs text-rose-600 sm:col-span-3">{{ $message }}</p> @enderror
 
                                     @if (! $editing)
@@ -235,7 +246,7 @@
                                                     <span class="text-slate-500">Stock total: <span class="font-bold text-slate-900">{{ $form->lotsTotal() }}</span> unidades</span>
                                                 </div>
                                             </div>
-                                        @else
+                                        @elseif (! $form->sold_by_weight)
                                             <div>
                                                 <label for="pf-initial" class="{{ $label }}">Existencias iniciales</label>
                                                 <input id="pf-initial" type="number" min="0" wire:model="form.initial_stock" class="{{ $input }} text-right">
@@ -244,11 +255,37 @@
                                         @endif
                                     @endif
 
+                                    @if ($form->sold_by_weight)
+                                        <p class="rounded-[10px] bg-slate-50 px-3 py-2 text-sm text-slate-600 sm:col-span-3">
+                                            No lleva stock propio: al venderlo se descuenta de la bolsa cerrada que lo tenga vinculado (en la bolsa, «al abrirla pasa a»). Si no queda bolsa abierta, se abre una sola.
+                                        </p>
+                                    @else
                                     <div>
                                         <label for="pf-min" class="{{ $label }}">Stock mínimo</label>
                                         <input id="pf-min" type="number" min="0" wire:model="form.min_stock" class="{{ $input }} text-right">
                                         @error('form.min_stock') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                                     </div>
+                                    @endif
+
+                                    @if (! $form->sold_by_weight && $this->bulkProducts->isNotEmpty())
+                                        <div class="sm:col-span-2">
+                                            <label for="pf-bulk" class="{{ $label }}">Bolsa cerrada: al abrirla pasa a</label>
+                                            <select id="pf-bulk" wire:model.live="form.bulk_product_id" class="{{ $input }}">
+                                                <option value="">No se abre para vender suelto</option>
+                                                @foreach ($this->bulkProducts as $bulk)
+                                                    <option value="{{ $bulk->id }}">{{ $bulk->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('form.bulk_product_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                        </div>
+                                        @if ($form->bulk_product_id)
+                                            <div>
+                                                <label for="pf-bag-weight" class="{{ $label }}">Kilos por bolsa</label>
+                                                <input id="pf-bag-weight" type="text" inputmode="decimal" wire:model="form.bag_weight" placeholder="Ej. 15" class="{{ $input }} text-right">
+                                                @error('form.bag_weight') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                                            </div>
+                                        @endif
+                                    @endif
 
                                     @if ($editing)
                                         <label class="flex items-center gap-2 self-end pb-2 text-sm text-slate-700">

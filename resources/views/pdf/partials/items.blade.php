@@ -23,7 +23,7 @@
                     @endif
                 </td>
                 <td class="c">{{ $line['detail'] }}</td>
-                <td class="num">{{ number_format($line['quantity'], 2, ',', '.') }}</td>
+                <td class="num">{{ number_format($line['quantity'], ($line['unit'] ?? '') === 'kg' ? 3 : 2, ',', '.') }}{{ ($line['unit'] ?? '') === 'kg' ? ' kg' : '' }}</td>
                 <td class="num">{{ number_format($line['price'], 2, ',', '.') }}</td>
                 <td class="num">{{ Pricing::moneyWithCents($line['subtotal']) }}</td>
             </tr>

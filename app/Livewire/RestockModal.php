@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\StockService;
 use App\Support\Pricing;
+use App\Support\Quantity;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -74,8 +75,17 @@ class RestockModal extends Component
         $this->newCost = trim($this->newCost);
         $cost = $this->newCost !== '' ? Pricing::parse($this->newCost) : null;
 
+        $this->quantity = trim($this->quantity);
+        $grams = $product->sold_by_weight ? Quantity::gramsFromKilos($this->quantity) : null;
+
         $this->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
+            'quantity' => $product->sold_by_weight
+                ? ['required', function ($attribute, $value, $fail) use ($grams) {
+                    if ($grams === null || $grams < 1) {
+                        $fail('Ingresá los kilos, por ejemplo 15 o 7,5.');
+                    }
+                }]
+                : ['required', 'integer', 'min:1'],
             'lotNumber' => [$product->tracks_expiry ? 'required' : 'nullable', 'string', 'max:60'],
             'expirationDate' => [$product->tracks_expiry ? 'required' : 'nullable', 'date'],
             'newCost' => ['nullable', function ($attribute, $value, $fail) use ($cost) {
@@ -98,7 +108,7 @@ class RestockModal extends Component
         try {
             $stock->restock(
                 $product,
-                (int) $this->quantity,
+                $grams ?? (int) $this->quantity,
                 strtoupper(trim($this->lotNumber)) ?: null,
                 $this->expirationDate ?: null,
                 $this->supplierId,
@@ -114,7 +124,7 @@ class RestockModal extends Component
 
         $this->open = false;
         $this->dispatch('stock-updated');
-        $this->dispatch('toast', message: "Se ingresaron {$this->quantity} unidades de {$product->name}");
+        $this->dispatch('toast', message: 'Se ingresaron '.($grams !== null ? $product->formatQuantity($grams) : "{$this->quantity} unidades")." de {$product->name}");
     }
 
     #[Computed]

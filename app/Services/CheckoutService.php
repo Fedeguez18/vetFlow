@@ -25,6 +25,8 @@ class CheckoutService
      * above the producer's credit limit needs "allow_over_limit". A sale from a POS terminal takes its number from the
      * terminal's own block (see VoucherBlockService).
      *
+     * Quantities are units, or grams for products sold by weight (their price is per kg).
+     *
      * @param  array<int, array{product_id: int, quantity: int}>  $cartItems
      * @param  array{type: string, producer_id?: int|null, payment_method?: string|null, voucher_number?: string|null, pos_terminal?: PosTerminal|null, user_id?: int|null, cash_session_id?: int|null, allow_over_limit?: bool}  $checkoutData
      *
@@ -71,18 +73,19 @@ class CheckoutService
                 if ($available < $qty) {
                     $expired = $product->expiredStock();
 
-                    throw new Exception("Stock insuficiente para {$product->name}: disponible {$available}, solicitado {$qty}."
-                        .($expired > 0 ? " Hay {$expired} unidades vencidas que no se pueden vender." : ''));
+                    throw new Exception("Stock insuficiente para {$product->name}: disponible {$product->formatQuantity($available)}, solicitado {$product->formatQuantity($qty)}."
+                        .($expired > 0 ? " Hay {$product->formatQuantity($expired)}".($product->sold_by_weight ? '' : ' unidades').' vencidas que no se pueden vender.' : ''));
                 }
 
                 $products[$productId] = $product;
 
-                $subtotal = round((float) $product->price * $qty, 2);
+                $subtotal = $product->lineTotal($qty);
                 $total += $subtotal;
 
                 $items[] = [
                     'product_id' => $product->id,
                     'quantity' => $qty,
+                    'sold_by_weight' => $product->sold_by_weight,
                     'unit_price' => $product->price,
                     'subtotal' => $subtotal,
                 ];

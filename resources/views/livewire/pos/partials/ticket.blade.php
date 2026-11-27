@@ -17,7 +17,7 @@
     <hr>
     @foreach ($sale->saleItems as $item)
         <div>{{ $item->product?->name }}</div>
-        <div class="row muted"><span>{{ $item->quantity }} x {{ Pricing::money($item->unit_price) }}</span><span>{{ Pricing::money($item->subtotal) }}</span></div>
+        <div class="row muted"><span>{{ $item->formattedQuantity() }} x {{ $item->formattedUnitPrice() }}</span><span>{{ Pricing::money($item->subtotal) }}</span></div>
     @endforeach
     <hr>
     <div class="row total"><span>TOTAL</span><span>{{ Pricing::money($sale->total) }}</span></div>

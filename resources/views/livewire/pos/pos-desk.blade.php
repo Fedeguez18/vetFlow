@@ -153,7 +153,7 @@
                     ])
                 >
                     @if ($inCart)
-                        <span class="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow">{{ $inCart }}</span>
+                        <span class="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow">{{ $product->sold_by_weight ? '✓' : $inCart }}</span>
                     @endif
                     <div class="flex items-start justify-between gap-2">
                         <span class="truncate rounded bg-[#0F2A26] px-1.5 py-0.5 text-[10px] font-semibold text-white">{{ $product->category?->name ?? 'General' }}</span>
@@ -166,14 +166,14 @@
                         @endif
                     </span>
                     <div class="mt-auto flex items-end justify-between gap-2 pt-4">
-                        <span class="text-xl font-bold tabular-nums text-slate-900">{{ $money($product->price) }}</span>
+                        <span class="text-xl font-bold tabular-nums text-slate-900">{{ $money($product->price) }}@if ($product->sold_by_weight)<span class="text-sm font-semibold text-slate-500">/kg</span>@endif</span>
                         <span @class([
                             'shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold',
                             'bg-emerald-100 text-emerald-700' => ! $outOfStock && ! $lowStock,
                             'bg-amber-100 text-amber-800' => $lowStock,
                             'bg-rose-100 text-rose-700' => $outOfStock,
                         ])>
-                            {{ $outOfStock ? ($product->stock > 0 ? 'Solo vencidos' : 'Sin stock') : 'Stock '.$sellable }}
+                            {{ $outOfStock ? ($product->stock > 0 ? 'Solo vencidos' : 'Sin stock') : 'Stock '.$product->formatQuantity($sellable) }}
                         </span>
                     </div>
                 </button>
@@ -233,11 +233,30 @@
         </div>
         <div class="max-h-96 min-h-32 flex-1 overflow-y-auto px-5 lg:max-h-none short:min-h-24">
             @forelse ($cart as $line)
+                @php($byWeight = $line['by_weight'] ?? false)
                 <div wire:key="cart-{{ $line['product_id'] }}" class="flex items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
                     <div class="min-w-0 flex-1">
                         <div class="truncate text-sm font-semibold text-slate-900" title="{{ $line['name'] }}">{{ $line['name'] }}</div>
-                        <div class="text-[11px] tabular-nums text-slate-400">{{ $money($line['price']) }} c/u</div>
+                        <div class="text-[11px] tabular-nums text-slate-400">{{ $money($line['price']) }} {{ $byWeight ? 'el kg' : 'c/u' }}</div>
                     </div>
+                    @if ($byWeight)
+                    <div class="flex shrink-0 items-center gap-1">
+                        <button type="button" wire:click="removeItem({{ $line['product_id'] }})" title="Quitar" class="flex size-7 items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:border-rose-300 hover:text-rose-600">&times;</button>
+                        <input
+                            type="number"
+                            min="1"
+                            max="{{ $line['stock'] }}"
+                            value="{{ $line['quantity'] }}"
+                            title="Gramos"
+                            x-on:focus-weight.window="if ($event.detail.productId === {{ $line['product_id'] }}) $nextTick(() => { $el.focus(); $el.select(); })"
+                            x-init="$nextTick(() => { $el.focus(); $el.select(); })"
+                            wire:change="setQuantity({{ $line['product_id'] }}, $event.target.value)"
+                            x-on:keydown.enter.prevent="$el.blur(); $dispatch('focus-scan')"
+                            class="w-16 rounded-md border border-slate-200 px-1.5 py-1 text-right text-sm font-semibold tabular-nums [appearance:textfield] focus:border-[#0F2A26] focus:outline-none focus:ring-2 focus:ring-[#0F2A26]/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        >
+                        <span class="text-xs font-semibold text-slate-500">g</span>
+                    </div>
+                    @else
                     <div class="flex shrink-0 items-center">
                         @if ($line['quantity'] <= 1)
                             <button type="button" wire:click="removeItem({{ $line['product_id'] }})" title="Quitar" class="flex size-7 items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:border-rose-300 hover:text-rose-600">
@@ -257,7 +276,8 @@
                         >
                         <button type="button" wire:click="setQuantity({{ $line['product_id'] }}, {{ $line['quantity'] + 1 }})" class="flex size-7 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:border-[#0F2A26]/40 hover:text-[#0F2A26]">+</button>
                     </div>
-                    <span class="w-20 shrink-0 text-right text-sm font-bold tabular-nums text-slate-900">{{ $money((float) $line['price'] * $line['quantity']) }}</span>
+                    @endif
+                    <span class="w-20 shrink-0 text-right text-sm font-bold tabular-nums text-slate-900">{{ $money(\App\Support\Quantity::lineTotal((float) $line['price'], $line['quantity'], $byWeight)) }}</span>
                 </div>
             @empty
                 <div class="py-12 text-center text-sm text-slate-400">Escaneá o tocá un producto para empezar la venta.</div>

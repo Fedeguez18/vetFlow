@@ -137,13 +137,13 @@
                         class="relative flex flex-col rounded-[10px] border bg-white p-4 text-left shadow-sm transition"
                         x-bind:class="stockOf(product) <= 0 ? 'cursor-not-allowed border-rose-200 opacity-60' : (cart[product.id] ? 'border-emerald-400 ring-2 ring-emerald-400/30' : 'border-slate-200 hover:border-[#0F2A26]/30 hover:shadow-md')"
                     >
-                        <span x-show="cart[product.id]" x-text="cart[product.id]?.quantity" class="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow"></span>
+                        <span x-show="cart[product.id]" x-text="product.sold_by_weight ? '✓' : cart[product.id]?.quantity" class="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow"></span>
                         <span class="truncate self-start rounded bg-[#0F2A26] px-1.5 py-0.5 text-[10px] font-semibold text-white" x-text="product.category ?? 'General'"></span>
                         <span class="mt-2.5 font-bold leading-snug text-slate-900" x-text="product.name"></span>
                         <span class="mt-0.5 text-xs text-slate-400" x-text="product.description || (product.barcode ? 'Cód. ' + product.barcode : (product.sku ?? 'Sin código'))"></span>
                         <span class="mt-auto flex items-end justify-between gap-2 pt-4">
-                            <span class="text-xl font-bold tabular-nums text-slate-900" x-text="money(product.price)"></span>
-                            <span class="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold" x-bind:class="stockOf(product) <= 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'" x-text="stockOf(product) <= 0 ? 'Sin stock' : 'Stock ' + stockOf(product)"></span>
+                            <span class="text-xl font-bold tabular-nums text-slate-900" x-text="money(product.price) + (product.sold_by_weight ? '/kg' : '')"></span>
+                            <span class="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold" x-bind:class="stockOf(product) <= 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'" x-text="stockOf(product) <= 0 ? 'Sin stock' : 'Stock ' + formatQuantity(stockOf(product), product.sold_by_weight)"></span>
                         </span>
                     </button>
                 </template>
@@ -200,14 +200,28 @@
                     <div class="flex items-center gap-3 border-b border-slate-100 py-3 last:border-b-0">
                         <div class="min-w-0 flex-1">
                             <div class="truncate text-sm font-semibold text-slate-900" x-text="line.name"></div>
-                            <div class="text-[11px] tabular-nums text-slate-400" x-text="money(line.price) + ' c/u'"></div>
+                            <div class="text-[11px] tabular-nums text-slate-400" x-text="money(line.price) + (line.by_weight ? ' el kg' : ' c/u')"></div>
                         </div>
-                        <div class="flex shrink-0 items-center">
+                        <div x-show="line.by_weight" class="flex shrink-0 items-center gap-1">
+                            <button type="button" x-on:click="remove(line.product_id)" title="Quitar" class="flex size-7 items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-rose-600">&times;</button>
+                            <input
+                                type="number"
+                                min="1"
+                                title="Gramos"
+                                x-bind:id="'offline-weight-' + line.product_id"
+                                x-bind:value="line.quantity"
+                                x-on:change="setQuantity(line.product_id, $event.target.value); $event.target.value = line.quantity"
+                                x-on:keydown.enter.prevent="$el.blur(); $refs.scan.focus()"
+                                class="w-16 rounded-md border border-slate-200 px-1.5 py-1 text-right text-sm font-semibold tabular-nums [appearance:textfield] focus:border-[#0F2A26] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            >
+                            <span class="text-xs font-semibold text-slate-500">g</span>
+                        </div>
+                        <div x-show="! line.by_weight" class="flex shrink-0 items-center">
                             <button type="button" x-on:click="line.quantity <= 1 ? remove(line.product_id) : setQuantity(line.product_id, line.quantity - 1)" class="flex size-7 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:text-rose-600">&minus;</button>
                             <span class="w-9 text-center text-sm font-semibold tabular-nums" x-text="line.quantity"></span>
                             <button type="button" x-on:click="setQuantity(line.product_id, line.quantity + 1)" class="flex size-7 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:text-[#0F2A26]">+</button>
                         </div>
-                        <span class="w-20 shrink-0 text-right text-sm font-bold tabular-nums text-slate-900" x-text="money(line.price * line.quantity)"></span>
+                        <span class="w-20 shrink-0 text-right text-sm font-bold tabular-nums text-slate-900" x-text="money(lineTotal(line.price, line.quantity, line.by_weight))"></span>
                     </div>
                 </template>
                 <div x-show="lines.length === 0" class="py-12 text-center text-sm text-slate-400">Escaneá o tocá un producto para empezar la venta.</div>

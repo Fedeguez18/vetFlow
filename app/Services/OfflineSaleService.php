@@ -10,6 +10,7 @@ use App\Models\Producer;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Support\Pricing;
+use App\Support\Quantity;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -79,6 +80,7 @@ class OfflineSaleService
                     'barcode' => $product->barcode,
                     'price' => (float) $product->price,
                     'stock' => $product->sellableStock(),
+                    'sold_by_weight' => (bool) $product->sold_by_weight,
                     'category_id' => $product->category_id,
                     'category' => $product->category?->name,
                 ])
@@ -167,7 +169,7 @@ class OfflineSaleService
                 'unit_price' => round((float) $group->first()['unit_price'], 2),
             ]);
 
-        $total = round($lines->sum(fn (array $line) => round($line['unit_price'] * $line['quantity'], 2)), 2);
+        $total = round($lines->sum(fn (array $line) => Quantity::lineTotal($line['unit_price'], $line['quantity'], $line['product']->sold_by_weight)), 2);
         $paid = $type === 'contado' ? $total : $this->checkout->creditToApply($producer, $total);
 
         if ($producer && $producer->exceedsCreditLimit($total)) {
@@ -198,15 +200,16 @@ class OfflineSaleService
         $sale->saleItems()->createMany($lines->map(fn (array $line) => [
             'product_id' => $line['product']->id,
             'quantity' => $line['quantity'],
+            'sold_by_weight' => $line['product']->sold_by_weight,
             'unit_price' => $line['unit_price'],
-            'subtotal' => round($line['unit_price'] * $line['quantity'], 2),
+            'subtotal' => Quantity::lineTotal($line['unit_price'], $line['quantity'], $line['product']->sold_by_weight),
         ])->values()->all());
 
         foreach ($lines as $line) {
             $missing = $this->stock->consumeAvailableForSale($line['product'], $line['quantity'], $sale, $cashSession?->user_id);
 
             if ($missing > 0) {
-                $notes[] = "Faltó stock de {$line['product']->name}: se vendieron {$line['quantity']} y el sistema tenía ".($line['quantity'] - $missing).'.';
+                $notes[] = "Faltó stock de {$line['product']->name}: se vendieron {$line['product']->formatQuantity($line['quantity'])} y el sistema tenía ".$line['product']->formatQuantity($line['quantity'] - $missing).'.';
                 $review = true;
             }
         }
