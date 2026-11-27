@@ -187,4 +187,19 @@ class CashAuditTest extends TestCase
         $this->assertTrue(Livewire::test(DailyAudit::class)->set('date', 'no-es-fecha')->instance()->day->isToday());
         $this->assertSame(now()->subDays(2)->toDateString(), Livewire::test(DailyAudit::class)->set('date', now()->subDays(2)->toDateString())->instance()->day->toDateString());
     }
+
+    public function test_each_sale_lists_the_products_it_sold(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $sale = Sale::factory()->create(['payment_method' => 'efectivo', 'total' => 3800, 'created_at' => today()->setTime(9, 0)]);
+        $sale->saleItems()->create(['product_id' => Product::factory()->create(['name' => 'Ivermectina 1%'])->id, 'quantity' => 2, 'unit_price' => 1500, 'subtotal' => 3000]);
+        $sale->saleItems()->create(['product_id' => Product::factory()->create(['name' => 'Dog Chow suelto'])->id, 'quantity' => 250, 'sold_by_weight' => true, 'unit_price' => 3200, 'subtotal' => 800]);
+        Payment::factory()->for(Producer::factory())->create(['amount' => 5000, 'notes' => null, 'created_at' => today()->setTime(10, 0)]);
+
+        Livewire::test(DailyAudit::class)
+            ->assertSee('Detalle')
+            ->assertSee('2 × Ivermectina 1%')
+            ->assertSee('250 g × Dog Chow suelto')
+            ->assertSee('Cobro de cuenta corriente');
+    }
 }

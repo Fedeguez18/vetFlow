@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Throwable;
@@ -44,19 +45,23 @@ class CashAuditService
 
     /**
      * Every sale and account payment from the start of $from to the end of $to (or of $from alone), in chronological order.
+     * "details" lists what was sold ("2 × Ivermectina…", "250 g × Alimento suelto") or what the payment was.
      *
-     * @return Collection<int, array{key: string, time: CarbonImmutable, kind: string, voucher: string, client: string, method: ?string, amount: float, collected: float, user: ?string, user_role: ?string, offline: bool, needs_review: bool, notes: ?string}>
+     * @return Collection<int, array{key: string, time: CarbonImmutable, kind: string, voucher: string, details: list<string>, client: string, method: ?string, amount: float, collected: float, user: ?string, user_role: ?string, offline: bool, needs_review: bool, notes: ?string}>
      */
     public function entries(CarbonImmutable $from, ?CarbonImmutable $to = null): Collection
     {
         $range = [$from->startOfDay(), ($to ?? $from)->endOfDay()];
 
-        $sales = Sale::query()->with(['producer', 'user'])->whereBetween('created_at', $range)->get()
+        $sales = Sale::query()->with(['producer', 'user', 'saleItems.product:id,name'])->whereBetween('created_at', $range)->get()
             ->map(fn (Sale $sale) => [
                 'key' => "sale-{$sale->id}",
                 'time' => $sale->created_at->toImmutable(),
                 'kind' => $sale->type,
                 'voucher' => $sale->voucher_number,
+                'details' => $sale->saleItems
+                    ->map(fn (SaleItem $item) => $item->formattedQuantity().' × '.($item->product?->name ?? 'Producto eliminado'))
+                    ->all(),
                 'client' => $sale->producer?->name ?? 'Consumidor final',
                 'method' => $sale->type === 'remito' ? 'cuenta_corriente' : $sale->payment_method,
                 'amount' => (float) $sale->total,
@@ -74,6 +79,7 @@ class CashAuditService
                 'time' => $payment->created_at->toImmutable(),
                 'kind' => 'cobro',
                 'voucher' => sprintf('P-%08d', $payment->id),
+                'details' => [trim((string) $payment->notes) ?: 'Cobro de cuenta corriente'],
                 'client' => $payment->producer?->name ?? '—',
                 'method' => $payment->payment_method,
                 'amount' => (float) $payment->amount,

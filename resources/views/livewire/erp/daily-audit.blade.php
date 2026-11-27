@@ -208,6 +208,7 @@
                 <tr>
                     <th class="px-4 py-3">{{ $period === 'dia' ? 'Hora' : 'Fecha' }}</th>
                     <th class="px-4 py-3">Comprobante</th>
+                    <th class="px-4 py-3">Detalle</th>
                     <th class="px-4 py-3">Cliente</th>
                     <th class="px-4 py-3">Método de pago</th>
                     <th class="px-4 py-3">Usuario</th>
@@ -230,6 +231,11 @@
                             @if ($entry['notes'])
                                 <span class="mt-1 block max-w-md whitespace-normal text-xs text-slate-500">{!! nl2br(e($entry['notes'])) !!}</span>
                             @endif
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-600">
+                            @foreach ($entry['details'] as $detail)
+                                <span class="block">{{ $detail }}</span>
+                            @endforeach
                         </td>
                         <td class="px-4 py-3 text-slate-700">{{ $entry['client'] }}</td>
                         <td @class(['whitespace-nowrap px-4 py-3', 'text-slate-700' => $entry['method'], 'italic text-slate-400' => ! $entry['method']])>
@@ -258,14 +264,14 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-12 text-center text-slate-500">No hubo movimientos en {{ ['dia' => 'el día', 'semana' => 'la semana', 'mes' => 'el mes'][$period] ?? 'el día' }}.</td>
+                        <td colspan="7" class="px-4 py-12 text-center text-slate-500">No hubo movimientos en {{ ['dia' => 'el día', 'semana' => 'la semana', 'mes' => 'el mes'][$period] ?? 'el día' }}.</td>
                     </tr>
                 @endforelse
             </tbody>
             @if ($this->transactions->isNotEmpty())
                 <tfoot class="border-t border-slate-200 bg-slate-50">
                     <tr>
-                        <td colspan="5" class="px-4 py-3 text-right font-medium text-slate-600">Total cobrado</td>
+                        <td colspan="6" class="px-4 py-3 text-right font-medium text-slate-600">Total cobrado</td>
                         <td class="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-900">{{ $money($this->transactionsSummary['collected']) }}</td>
                     </tr>
                 </tfoot>
