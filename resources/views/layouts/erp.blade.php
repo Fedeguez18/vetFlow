@@ -19,12 +19,12 @@
         // Sellers only reach this layout through their profile: no ERP tabs for them.
         $tabs = $user?->can('admin') ? [
             ['label' => 'Inventario & Lotes', 'route' => 'erp.inventory'],
-            ['label' => ($pendingLabels = \App\Models\BarcodeLabel::sum('copies')) ? "Etiquetas ({$pendingLabels})" : 'Etiquetas', 'route' => 'erp.labels'],
             ['label' => 'Cuentas Corrientes & Remitos', 'route' => 'erp.accounts'],
             ['label' => 'Auditoría & Caja', 'route' => 'erp.audit'],
             ['label' => 'Proveedores', 'route' => 'erp.suppliers'],
             ['label' => 'Rubros', 'route' => 'erp.categories'],
             ['label' => 'Usuarios', 'route' => 'erp.users'],
+            ['label' => ($pendingLabels = \App\Models\BarcodeLabel::sum('copies')) ? "Etiquetas ({$pendingLabels})" : 'Etiquetas', 'route' => 'erp.labels'],
         ] : [];
     @endphp
 
